@@ -9,7 +9,9 @@ from tqdm import tqdm
 from config import *
 from kairos_utils import *
 
-
+#! 打靶
+abnormal_output = open("./anormaly.txt","w",encoding="utf-8")
+dangerous_output = open("./dangerous.txt","w",encoding="utf-8")
 # Some common path abstraction for visualization
 
 def replace_path_name(path_name):
@@ -133,8 +135,10 @@ for c in communities:
                      shape=dst_shape)
 
             if attack_edge_flag(temp_edge['srcmsg']) and attack_edge_flag(temp_edge['dstmsg']):
+                dangerous_output.write(f"{temp_edge['srcmsg']} --{temp_edge['edge_type']}--{temp_edge['dstmsg']}")
                 edge_color = 'red'
             else:
+                abnormal_output.write(f"{temp_edge['srcmsg']} --{temp_edge['edge_type']}--{temp_edge['dstmsg']}")
                 edge_color = 'blue'
             dot.edge(str(hashgen(replace_path_name(temp_edge['srcmsg']))),
                      str(hashgen(replace_path_name(temp_edge['dstmsg']))), label=temp_edge['edge_type'],

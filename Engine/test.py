@@ -1,7 +1,8 @@
-##########################################################################################
-# Some of the code is adapted from:
-# https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
-##########################################################################################
+'''
+对训练后的模型进行测试，并将测试结果写到日志文件中（无论是否异常）
+Some of the code is adapted from:
+https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
+'''
 
 import logging
 
@@ -20,14 +21,21 @@ logger.addHandler(file_handler)
 
 
 @torch.no_grad()
-def test(inference_data,
-          memory,
-          gnn,
-          link_pred,
-          neighbor_loader,
-          nodeid2msg,
-          path
-          ):
+def test(
+    inference_data,
+    memory,
+    gnn,
+    link_pred,
+    neighbor_loader,
+    nodeid2msg,
+    path
+):
+    '''
+    测试函数，接收 推理数据，内存模型，图神经网络，链接预测器，邻居加载器，节点ID到消息的映射，路径 为参数
+    1. 针对模型测试进行一系列的初始化
+    2. 逐批次遍历推理数据，计算并记录损失值
+    返回时间窗口内的损失情况
+    '''
     if os.path.exists(path):
         pass
     else:
@@ -155,7 +163,7 @@ def load_data():
 
     return [graph_4_3, graph_4_4, graph_4_5, graph_4_6, graph_4_7]
 
-
+#! To DIY
 if __name__ == "__main__":
     logger.info("Start logging.")
 
@@ -168,7 +176,7 @@ if __name__ == "__main__":
 
     # load trained model
     memory, gnn, link_pred, neighbor_loader = torch.load(f"{MODELS_DIR}/models.pt",map_location=device)
-
+#* 以下代码和 load_data 函数改法相同
     # Reconstruct the edges in each day
     test(inference_data=graph_4_3,
          memory=memory,

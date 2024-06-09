@@ -4,7 +4,7 @@
 ##########################################################################################
 
 import logging
-
+from time import ctime
 from kairos_utils import *
 from config import *
 from model import *
@@ -19,13 +19,20 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 
-def train(train_data,
-          memory,
-          gnn,
-          link_pred,
-          optimizer,
-          neighbor_loader
-          ):
+def train(
+    train_data,
+    memory,
+    gnn,
+    link_pred,
+    optimizer,
+    neighbor_loader
+):
+    '''
+    接收训练数据，内存模型，图神经网络模型，链接预测器，优化器与邻居加载器为参数
+    1. 对内存、图神经网络和链接预测器进行训练准备，并初始化相关状态
+    2. 对训练数据进行批处理，计算损失值，并更新模型参数
+    返回总体损失值
+    '''
     memory.train()
     gnn.train()
     link_pred.train()
@@ -69,13 +76,29 @@ def train(train_data,
         total_loss += float(loss) * batch.num_events
     return total_loss / train_data.num_events
 
+#! To DIY
 def load_train_data():
+    '''
+    加载训练数据（图数据）并将其一同返回
+    '''
+    #* 尝试改为以下形式
+    #* graph_list = []
+    #* graph_name_list = os.listdir(GRAPHS_DIR)
+    #* for graph_name in graph_list:
+    #*     graph = torch.load(GRAPHS_DIR + graph_name).to(device=device)
+    #*     graph_list.append(graph)
+    #* return graph_list
+
     graph_4_2 = torch.load(GRAPHS_DIR + "/graph_4_2.TemporalData.simple").to(device=device)
     graph_4_3 = torch.load(GRAPHS_DIR + "/graph_4_3.TemporalData.simple").to(device=device)
     graph_4_4 = torch.load(GRAPHS_DIR + "/graph_4_4.TemporalData.simple").to(device=device)
     return [graph_4_2, graph_4_3, graph_4_4]
 
 def init_models(node_feat_size):
+    '''
+    初始化 内存模型，图神经网络，链接预测器，优化器，邻居加载器
+    返回初始化得到的 实例
+    '''
     memory = TGNMemory(
         max_node_num,
         node_feat_size,
@@ -103,6 +126,7 @@ def init_models(node_feat_size):
 
     return memory, gnn, link_pred, optimizer, neighbor_loader
 
+#! 可使用已有的模型(.pt文件)通过该程序进行二次训练
 if __name__ == "__main__":
     logger.info("Start logging.")
 
@@ -124,10 +148,10 @@ if __name__ == "__main__":
                 optimizer=optimizer,
                 neighbor_loader=neighbor_loader
             )
-            logger.info(f'  Epoch: {epoch:02d}, Loss: {loss:.4f}')
+            logger.info(f"  Epoch: {epoch:02d}, Loss: {loss:.4f}")
 
     # Save the trained model
     model = [memory, gnn, link_pred, neighbor_loader]
 
     os.system(f"mkdir -p {MODELS_DIR}")
-    torch.save(model, f"{MODELS_DIR}/models.pt")
+    torch.save(model, f"{MODELS_DIR}/models-{ctime}.pt")

@@ -1,7 +1,9 @@
+'''
+在通过正常数据集训练出的模型通过测试集计算出测试集中所有数据的损失后，
+该模块会从测试结果中筛选出损失值异常的数据，并为它们构建异常队列以供进一步的异常情况分析
+'''
 import logging
-
 import torch
-
 from kairos_utils import *
 from config import *
 
@@ -13,9 +15,16 @@ file_handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
-
+#! 打桩
+#! output = open("./jerry/output.txt","w",encoding="utf-8")
 
 def cal_anomaly_loss(loss_list, edge_list):
+    '''
+    接收 损失列表，边列表 为参数
+    1. 对比损失列表与边列表的值找出其中值异常的结点和边
+    2. 计算出异常损失的数量，平均损失
+    返回上述工作流程中得到的结果
+    '''
     if len(loss_list) != len(edge_list):
         print("error!")
         return 0
@@ -42,7 +51,12 @@ def cal_anomaly_loss(loss_list, edge_list):
             edge_set.add(edge_list[i][0] + edge_list[i][1])
     return count, loss_sum / count, node_set, edge_set
 
+#! To DIY
+#* 将以下 file_path 转移至 config.py 中实现 or 自动进行遍历
 def compute_IDF():
+    '''
+    根据给定的文件列表，计算结点 IDF ， 并在将计算结果保存至 IDF 文件中后返回计算结果与给定的文件列表
+    '''
     node_IDF = {}
 
     file_list = []
@@ -89,7 +103,11 @@ def compute_IDF():
 
 # Measure the relationship between two time windows, if the returned value
 # is not 0, it means there are suspicious nodes in both time windows.
+#! 打桩
 def cal_set_rel(s1, s2, node_IDF, tw_list):
+    '''
+    计算时间窗口之间的关系，检查是否存在可疑结点
+    '''
     def is_include_key_word(s):
         # The following common nodes don't exist in the training/validation data, but
         # will have the influences to the construction of anomalous queue (i.e. noise).
@@ -123,7 +141,11 @@ def cal_set_rel(s1, s2, node_IDF, tw_list):
             count += 1
     return count
 
+#! 打桩
 def anomalous_queue_construction(node_IDF, tw_list, graph_dir_path):
+    '''
+    执行异常队列的构建，遍历给定目录中的文件，计算每个时间窗口内的异常情况，并根据一定逻辑增量地构建队列
+    '''
     history_list = []
     current_tw = {}
 
