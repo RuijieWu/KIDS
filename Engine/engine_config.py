@@ -202,17 +202,27 @@ ATTACK_NODES = {
         'vUgefal',
         '/var/log/devc',
         '/etc/passwd',
-        '81.49.200.166',
-        '61.167.39.128',
-        '78.205.235.65',
-        '139.123.0.113',
         "'nginx'",
     ],
     "medium":[
-        
+        '/tmp/vUgefal',
+        'vUgefal',
+        '/var/log/devc',
+        '/etc/passwd',
+        "'nginx'",
+        "'apache'",
+        "'/etc/proc'",
+        "'/etc/sudo'"
     ],
     "high":[
-        
+        '/tmp/vUgefal',
+        'vUgefal',
+        '/var/log/devc',
+        '/etc/passwd',
+        "'nginx'",
+        "'apache'",
+        "'/etc/proc'",
+        "'/etc/sudo'"
     ]
 }
 

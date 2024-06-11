@@ -8,8 +8,8 @@ import numpy as np
 from sklearn.feature_extraction import FeatureHasher
 from torch_geometric.data import *
 from tqdm import tqdm
-from config import *
-from kairos_utils import *
+from .config import *
+from .kairos_utils import *
 
 # Setting for logging
 logger = logging.getLogger("embedding_logger")

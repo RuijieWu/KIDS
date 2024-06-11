@@ -4,8 +4,8 @@
 '''
 import logging
 import torch
-from kairos_utils import *
-from config import *
+from .kairos_utils import *
+from .config import *
 
 # Setting for logging
 logger = logging.getLogger("anomalous_queue_logger")

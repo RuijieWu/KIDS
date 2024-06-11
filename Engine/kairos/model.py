@@ -1,10 +1,10 @@
 '''
 Date: 2024-06-09 19:03:22
-LastEditTime: 2024-06-11 16:04:52
+LastEditTime: 2024-06-11 17:50:14
 Description: 
 '''
-from kairos_utils import *
-from config import *
+from .kairos_utils import *
+from .config import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 criterion = nn.CrossEntropyLoss()

@@ -6,9 +6,9 @@ https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
 
 import logging
 
-from kairos_utils import *
-from config import *
-from model import *
+from .kairos_utils import *
+from .config import *
+from .model import *
 
 # Setting for logging
 logger = logging.getLogger("reconstruction_logger")

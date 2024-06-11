@@ -7,8 +7,8 @@ import re
 import hashlib
 #* import torch
 from tqdm import tqdm
-from config import *
-from kairos_utils import *
+from .config import *
+from .kairos_utils import *
 
 def stringtomd5(originstr):
     originstr = originstr.encode("utf-8")

@@ -1,9 +1,9 @@
 from sklearn.metrics import confusion_matrix
 import logging
 
-from kairos_utils import *
-from config import *
-from model import *
+from .kairos_utils import *
+from .config import *
+from .model import *
 
 
 # Setting for logging

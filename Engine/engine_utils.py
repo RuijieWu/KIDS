@@ -26,8 +26,7 @@ import time
 import xxhash
 import gc
 
-from config import *
-
+from .engine_config import *
 
 def ns_time_to_datetime(ns):
     """

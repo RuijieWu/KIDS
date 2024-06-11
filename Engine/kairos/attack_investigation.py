@@ -6,8 +6,8 @@ import networkx as nx
 import community.community_louvain as community_louvain
 from tqdm import tqdm
 
-from config import *
-from kairos_utils import *
+from .config import *
+from .kairos_utils import *
 ATTACK_LIST = [
     '/home/postgres/kairos/artifact/graph_4_6/2018-04-06 11:18:26.126177915~2018-04-06 11:33:35.116170745.txt',
 ]
