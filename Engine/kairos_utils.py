@@ -115,6 +115,9 @@ def init_database_connection():
     return cur, connect
 
 def gen_nodeid2msg(cur):
+    '''
+    从 node2id 表中读取所有字段并生成 index_id:{node_type:msg} 的字典
+    '''
     sql = "select * from node2id ORDER BY index_id;"
     cur.execute(sql)
     rows = cur.fetchall()

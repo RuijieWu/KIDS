@@ -151,6 +151,7 @@ def test(
 
     return time_with_loss
 
+#! To DIY
 def load_data():
     # graph_4_3 - graph_4_5 will be used to initialize node IDF scores.
     graph_4_3 = torch.load(GRAPHS_DIR + "/graph_4_3.TemporalData.simple").to(device=device)
@@ -168,13 +169,16 @@ if __name__ == "__main__":
     logger.info("Start logging.")
 
     # load the map between nodeID and node labels
+    #* 初始化数据库连接，加载节点标签信息
     cur, _ = init_database_connection()
     nodeid2msg = gen_nodeid2msg(cur=cur)
 
     # Load data
+    #* 加载测试数据集
     graph_4_3, graph_4_4, graph_4_5, graph_4_6, graph_4_7 = load_data()
 
     # load trained model
+    #* 加载训练好的模型
     memory, gnn, link_pred, neighbor_loader = torch.load(f"{MODELS_DIR}/models.pt",map_location=device)
 #* 以下代码和 load_data 函数改法相同
     # Reconstruct the edges in each day

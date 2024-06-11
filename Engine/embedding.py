@@ -55,6 +55,7 @@ def gen_feature(cur):
     for i in tqdm(nodeid2msg.keys()):
         if type(i) == int:
             higlist = None
+            #* nodeid2msg[i].keys() 即 node_type
             if 'netflow' in nodeid2msg[i].keys():
                 higlist = ['netflow']
                 higlist += ip2higlist(nodeid2msg[i]['netflow'])
@@ -76,6 +77,7 @@ def gen_feature(cur):
         vec=FH_string.transform([i]).toarray()
         node2higvec.append(vec)
     node2higvec = np.array(node2higvec).reshape([-1, NODE_EMBEDDING_DIM])
+    #! File Saved
     torch.save(node2higvec, ARTIFACT_DIR + "node2higvec")
     return node2higvec
 
@@ -90,6 +92,11 @@ def gen_relation_onehot():
     return rel2vec
 
 def gen_vectorized_graphs(cur, node2higvec, rel2vec, logger):
+    '''
+    遍历数据库中的事件数据，根据指定条件选择需要的事件。
+    将事件转换为图数据的形式，包括源节点、目标节点、消息（节点特征和关系编码的拼接）、时间戳等信息。
+    将构建的图数据集保存在文件中
+    '''
     for day in tqdm(range(2, 14)):
         start_timestamp = datetime_to_ns_time_US('2018-04-' + str(day) + ' 00:00:00')
         end_timestamp = datetime_to_ns_time_US('2018-04-' + str(day + 1) + ' 00:00:00')
@@ -128,7 +135,13 @@ def gen_vectorized_graphs(cur, node2higvec, rel2vec, logger):
         dataset.dst = dataset.dst.to(torch.long)
         dataset.msg = dataset.msg.to(torch.float)
         dataset.t = dataset.t.to(torch.long)
+        #! File Saved
         torch.save(dataset, GRAPHS_DIR + "/graph_4_" + str(day) + ".TemporalData.simple")
+        #*    文件格式：这是使用 PyTorch Geometric 库中的 TemporalData 类保存的图数据集。
+        #*    内容：包含了该时间窗口内的图数据，每个时间窗口对应一个文件。
+        #*    结构：通常包括源节点、目标节点、消息（节点特征和关系编码的拼接）、时间戳等信息。
+        #*    用途：这些文件可以被后续的模型训练、评估或其他图分析任务所使用。
+
 
 if __name__ == "__main__":
     logger.info("Start logging.")

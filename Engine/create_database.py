@@ -17,7 +17,7 @@ def stringtomd5(originstr):
     return signaturemd5.hexdigest()
 
 def store_netflow(file_path, cur, connect):
-    "Parse data from logs"
+    "Parse netflow type data from logs them store them into netflow_node_table"
     netobjset = set()
     netobj2hash = {}
     for file in tqdm(FILE_LIST):
@@ -48,6 +48,7 @@ def store_netflow(file_path, cur, connect):
     datalist = []
     for i in netobj2hash.keys():
         if len(i) != 64:
+            #* datalist.append(node_id + hashstr + netobj2hash[i][1].split(","))
             datalist.append([i] + [netobj2hash[i][0]] + netobj2hash[i][1].split(","))
 
     sql = '''insert into netflow_node_table
@@ -57,10 +58,10 @@ def store_netflow(file_path, cur, connect):
     connect.commit()
 
 def store_subject(file_path, cur, connect):
-    # Parse data from logs
+    # Parse subject type data from logs them store into subject_node_table
     scusess_count = 0
     fail_count = 0
-    #* subject_objset = set()
+    #*subject_objset = set()
     subject_obj2hash = {}  #
     for file in tqdm(FILE_LIST):
         with open(file_path + file, "r") as f:
@@ -89,6 +90,7 @@ def store_subject(file_path, cur, connect):
     connect.commit()
 
 def store_file(file_path, cur, connect):
+    # Parse file type data from logs them store into file_node_table
     file_node = set()
     for file in tqdm(FILE_LIST):
         with open(file_path + file, "r") as f:
