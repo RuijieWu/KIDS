@@ -6,19 +6,29 @@ import numpy as np
 from sklearn.feature_extraction import FeatureHasher
 from torch_geometric.data import *
 from tqdm import tqdm
+from graphviz import Digraph
+import networkx as nx
+import community.community_louvain as community_louvain
+
 from .engine_config import *
 from .engine_utils import *
 
-def log_events():
-    pass
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 criterion = nn.CrossEntropyLoss()
-
-max_node_num = 268243  # the number of nodes in node2id table +1
+max_node_num = 268243  #! the number of nodes in node2id table +1
 min_dst_idx, max_dst_idx = 0, max_node_num
-# Helper vector to map global node indices to local ones.
 assoc = torch.empty(max_node_num, dtype=torch.long, device=device)
+abnormal_output = open("./anormaly.txt","w",encoding="utf-8")
+dangerous_output = open("./dangerous.txt","w",encoding="utf-8")
+
+# Some common path abstraction for visualization
+def replace_path_name(path_name):
+    for i in REPLACE_DICT:
+        if i in path_name:
+            return REPLACE_DICT[i]
+    return path_name
+ 
+# Users should manually put the detected anomalous time windows here
 
 def cal_pos_edges_loss_multiclass(link_pred_ratio,labels):
     loss=[]
@@ -57,8 +67,8 @@ def gen_vectorized_graphs(events, node2higvec, rel2vec):
     dataset.dst = dataset.dst.to(torch.long)
     dataset.msg = dataset.msg.to(torch.float)
     dataset.t = dataset.t.to(torch.long)
-        #! File Saved
-        #! torch.save(dataset, GRAPHS_DIR + "/graph_4_" + str(day) + ".TemporalData.simple")
+    #! File Saved
+    #! torch.save(dataset, GRAPHS_DIR + "/graph_4_" + str(day) + ".TemporalData.simple")
     return dataset
 
 @torch.no_grad()
@@ -189,19 +199,6 @@ def test(
 
     return time_with_loss
 
-#! To DIY
-def load_data():
-    # graph_4_3 - graph_4_5 will be used to initialize node IDF scores.
-    graph_4_3 = torch.load(GRAPHS_DIR + "/graph_4_3.TemporalData.simple").to(device=device)
-    graph_4_4 = torch.load(GRAPHS_DIR + "/graph_4_4.TemporalData.simple").to(device=device)
-    graph_4_5 = torch.load(GRAPHS_DIR + "/graph_4_5.TemporalData.simple").to(device=device)
-
-    # Testing set
-    graph_4_6 = torch.load(GRAPHS_DIR + "/graph_4_6.TemporalData.simple").to(device=device)
-    graph_4_7 = torch.load(GRAPHS_DIR + "/graph_4_7.TemporalData.simple").to(device=device)
-
-    return [graph_4_3, graph_4_4, graph_4_5, graph_4_6, graph_4_7]
-
 def gen_relation_onehot():
     relvec=torch.nn.functional.one_hot(
         torch.arange(0, len(REL2ID.keys())//2), 
@@ -252,8 +249,8 @@ def compute_IDF():
         include_count = len(node_set[n])
         IDF = math.log(len(file_list) / (include_count + 1))
         node_IDF[n] = IDF
-
-    torch.save(node_IDF, ARTIFACT_DIR + "node_IDF")
+    #! File Saved
+    #! torch.save(node_IDF, ARTIFACT_DIR + "node_IDF")
     return node_IDF, file_list
 
 # Measure the relationship between two time windows, if the returned value
@@ -294,6 +291,7 @@ def cal_set_rel(s1, s2, node_IDF, tw_list):
         if IDF > (math.log(len(tw_list) * 0.9)):
             count += 1
     return count
+
 def cal_anomaly_loss(loss_list, edge_list):
     '''
     接收 损失列表，边列表 为参数
@@ -325,7 +323,6 @@ def cal_anomaly_loss(loss_list, edge_list):
             node_set.add(dst_node)
             edge_set.add(edge_list[i][0] + edge_list[i][1])
     return count, loss_sum / count, node_set, edge_set
-
 
 #! 打桩
 def anomalous_queue_construction(node_IDF, tw_list, graph_dir_path):
@@ -371,18 +368,7 @@ def anomalous_queue_construction(node_IDF, tw_list, graph_dir_path):
 
         index_count += 1
 
-    return history_list
-
-
-
-def main():
-    rel2vec = gen_relation_onehot()
-    node2higvec = torch.load(ARTIFACT_DIR + "node2higvec").to(device=device)
-    events = listen()
-    graph = gen_vectorized_graphs(events, node2higvec=node2higvec, rel2vec=rel2vec)
-    cur, _ = init_database_connection()
-    nodeid2msg = gen_nodeid2msg(cur=cur)
-    memory, gnn, link_pred, neighbor_loader = torch.load(f"{MODELS_DIR}/models.pt",map_location=device)
+def prepare(graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg):
     test(
         inference_data=graph,
         memory=memory,
@@ -390,12 +376,152 @@ def main():
         link_pred=link_pred,
         neighbor_loader=neighbor_loader,
         nodeid2msg=nodeid2msg,
-        path=ARTIFACT_DIR + "graph"
+        path=ARTIFACT_DIR + "graph_list"
     )
+
+def load_data():
+    rel2vec = gen_relation_onehot()
+    node2higvec = torch.load(ARTIFACT_DIR + "node2higvec").to(device=device)
+    events = listen()
+    graph = gen_vectorized_graphs(events, node2higvec=node2higvec, rel2vec=rel2vec)
+    cur, _ = init_database_connection()
+    nodeid2msg = gen_nodeid2msg(cur=cur)
+    memory, gnn, link_pred, neighbor_loader = torch.load(f"{MODELS_DIR}/models.pt",map_location=device)
+    return graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg
+
+def attack_investigate():
+    original_edges_count = 0
+    gg = nx.DiGraph()
+    count = 0
+    for path in tqdm(ATTACK_LIST):
+        if ".txt" in path:
+            tempg = nx.DiGraph()
+            f = open(path, "r")
+            edge_list = []
+            for line in f:
+                count += 1
+                l = line.strip()
+                jdata = eval(l)
+                edge_list.append(jdata)
+
+            edge_list = sorted(edge_list, key=lambda x: x['loss'], reverse=True)
+            original_edges_count += len(edge_list)
+
+            loss_list = []
+            for i in edge_list:
+                loss_list.append(i['loss'])
+            loss_mean = mean(loss_list)
+            loss_std = std(loss_list)
+            print(loss_mean)
+            print(loss_std)
+            thr = loss_mean + 1.5 * loss_std
+            print("thr:", thr)
+            for e in edge_list:
+                if e['loss'] > thr:
+                    tempg.add_edge(str(hashgen(replace_path_name(e['srcmsg']))),
+                                str(hashgen(replace_path_name(e['dstmsg']))))
+                    gg.add_edge(str(hashgen(replace_path_name(e['srcmsg']))), str(hashgen(replace_path_name(e['dstmsg']))),
+                                loss=e['loss'], srcmsg=e['srcmsg'], dstmsg=e['dstmsg'], edge_type=e['edge_type'],
+                                time=e['time'])
+
+    partition = community_louvain.best_partition(gg.to_undirected())
+
+    # Generate the candidate subgraphs based on community discovery results
+    communities = {}
+    max_partition = 0
+    for i in partition:
+        if partition[i] > max_partition:
+            max_partition = partition[i]
+    for i in range(max_partition + 1):
+        communities[i] = nx.DiGraph()
+    for e in gg.edges:
+        communities[partition[e[0]]].add_edge(e[0], e[1])
+        communities[partition[e[1]]].add_edge(e[0], e[1])
+
+
+    # Define the attack nodes. They are **only be used to plot the colors of attack nodes and edges**.
+    # They won't change the detection results.
+    def attack_edge_flag(msg):
+        attack_nodes = ATTACK_NODES[DETECTION_LEVEL]
+        flag = False
+        for i in attack_nodes:
+            if i in msg:
+                flag = True
+                break
+        return flag
+
+    # Plot and render candidate subgraph
+    os.system(f"mkdir -p {ARTIFACT_DIR}/graph_visual/")
+
+    graph_index = 0
+
+    for c in communities:
+        dot = Digraph(name="MyPicture", comment="the test", format="pdf")
+        dot.graph_attr['rankdir'] = 'LR'
+
+        for e in communities[c].edges:
+            try:
+                temp_edge = gg.edges[e]
+            except:
+                pass
+
+            if "'subject': '" in temp_edge['srcmsg']:
+                src_shape = 'box'
+            elif "'file': '" in temp_edge['srcmsg']:
+                src_shape = 'oval'
+            elif "'netflow': '" in temp_edge['srcmsg']:
+                src_shape = 'diamond'
+            if attack_edge_flag(temp_edge['srcmsg']):
+                src_node_color = 'red'
+            else:
+                src_node_color = 'blue'
+            dot.node(name=str(hashgen(replace_path_name(temp_edge['srcmsg']))), label=str(
+                replace_path_name(temp_edge['srcmsg']) + str(
+                    partition[str(hashgen(replace_path_name(temp_edge['srcmsg'])))])), color=src_node_color,
+                    shape=src_shape)
+
+            # destination node
+            if "'subject': '" in temp_edge['dstmsg']:
+                dst_shape = 'box'
+            elif "'file': '" in temp_edge['dstmsg']:
+                dst_shape = 'oval'
+            elif "'netflow': '" in temp_edge['dstmsg']:
+                dst_shape = 'diamond'
+            if attack_edge_flag(temp_edge['dstmsg']):
+                dst_node_color = 'red'
+            else:
+                dst_node_color = 'blue'
+            dot.node(name=str(hashgen(replace_path_name(temp_edge['dstmsg']))), label=str(
+                replace_path_name(temp_edge['dstmsg']) + str(
+                    partition[str(hashgen(replace_path_name(temp_edge['dstmsg'])))])), color=dst_node_color,
+                    shape=dst_shape)
+
+            if attack_edge_flag(temp_edge['srcmsg']) and attack_edge_flag(temp_edge['dstmsg']):
+                dangerous_output.write(f"{temp_edge['srcmsg']} --{temp_edge['edge_type']}--{temp_edge['dstmsg']}/{temp_edge['time']}\n")
+                edge_color = 'red'
+            else:
+                abnormal_output.write(f"{temp_edge['srcmsg']} --{temp_edge['edge_type']}--{temp_edge['dstmsg']}/{ns_time_to_datetime(temp_edge['time'])}\n")
+                edge_color = 'blue'
+            dot.edge(str(hashgen(replace_path_name(temp_edge['srcmsg']))),
+                    str(hashgen(replace_path_name(temp_edge['dstmsg']))), label=temp_edge['edge_type'],
+                    color=edge_color)
+
+        dot.render(f'{ARTIFACT_DIR}/graph_visual/subgraph_' + str(graph_index), view=False)
+        graph_index += 1
+
+def aberration_investigate():
     node_IDF, tw_list = compute_IDF()
-    history_list = anomalous_queue_construction(
+    anomalous_queue_construction(
         node_IDF=node_IDF,
         tw_list=tw_list,
-        graph_dir_path=f"{ARTIFACT_DIR}/graph_4_6/"
+        graph_dir_path=f"{ARTIFACT_DIR}/graph_list/"
     )
-    torch.save(history_list, f"{ARTIFACT_DIR}/graph_4_6_history_list")
+
+def main():
+    graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data()
+    prepare(graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg)
+    aberration_investigate()
+    attack_investigate()
+
+if __name__ == "__main__":
+    main()
