@@ -6,12 +6,17 @@ import numpy as np
 from sklearn.feature_extraction import FeatureHasher
 from torch_geometric.data import *
 from tqdm import tqdm
+<<<<<<< Updated upstream
 from graphviz import Digraph
 import networkx as nx
 import community.community_louvain as community_louvain
 
 from .engine_config import *
 from .engine_utils import *
+=======
+from config import *
+from kairos_utils import *
+>>>>>>> Stashed changes
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 criterion = nn.CrossEntropyLoss()
@@ -213,7 +218,18 @@ def gen_relation_onehot():
     return rel2vec
 
 def listen():
-    events = [[]]
+    cur, _ = init_database_connection()
+    for day in tqdm(range(2, 14)):
+        start_timestamp = datetime_to_ns_time_US('2018-04-' + str(day) + ' 00:00:00')
+        end_timestamp = datetime_to_ns_time_US('2018-04-' + str(day + 1) + ' 00:00:00')
+        sql = """
+        select * from event_table
+        where
+              timestamp_rec>'%s' and timestamp_rec<'%s'
+               ORDER BY timestamp_rec;
+        """ % (start_timestamp, end_timestamp)
+        cur.execute(sql)
+        events = cur.fetchall()
     return events
 
 def compute_IDF():
@@ -516,12 +532,16 @@ def aberration_investigate():
         tw_list=tw_list,
         graph_dir_path=f"{ARTIFACT_DIR}/graph_list/"
     )
+<<<<<<< Updated upstream
 
 def main():
     graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data()
     prepare(graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg)
     aberration_investigate()
     attack_investigate()
+=======
+    torch.save(history_list, f"{ARTIFACT_DIR}/graph_4_6_history_list")
+>>>>>>> Stashed changes
 
 if __name__ == "__main__":
     main()
