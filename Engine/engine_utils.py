@@ -28,6 +28,43 @@ import gc
 
 from .engine_config import *
 
+def path2higlist(p):
+    l=[]
+    spl=p.strip().split('/')
+    for i in spl:
+        if len(l)!=0:
+            l.append(l[-1]+'/'+i)
+        else:
+            l.append(i)
+    return l
+
+def list2str(l):
+    return ''.join(l)
+
+def gen_relation_onehot():
+    relvec=torch.nn.functional.one_hot(
+        torch.arange(0, len(REL2ID.keys())//2), 
+        num_classes=len(REL2ID.keys())//2
+    )
+    rel2vec={}
+    for i in REL2ID.keys():
+        if type(i) is not int:
+            rel2vec[i]= relvec[REL2ID[i]-1]
+            rel2vec[relvec[REL2ID[i]-1]]=i
+    #! torch.save(rel2vec, ARTIFACT_DIR + "rel2vec")
+    return rel2vec
+
+
+def ip2higlist(p):
+    l=[]
+    spl=p.strip().split('.')
+    for i in spl:
+        if len(l)!=0:
+            l.append(l[-1]+'.'+i)
+        else:
+            l.append(i)
+    return l
+
 def ns_time_to_datetime(ns):
     """
     :param ns: int nano timestamp
