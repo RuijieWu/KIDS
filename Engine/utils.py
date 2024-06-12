@@ -4,7 +4,6 @@ from datetime import datetime
 import time
 import psycopg2
 from psycopg2 import extras as ex
-import os.path as osp
 import os
 import copy
 import torch
@@ -26,7 +25,7 @@ import time
 import xxhash
 import gc
 
-from .engine_config import *
+from config import *
 
 def path2higlist(p):
     l=[]
@@ -190,6 +189,40 @@ def hashgen(l):
         hasher.update(e)
     return hasher.intdigest()
 
+#################################################
+#* embedder
 
+def path2higlist(p):
+    l=[]
+    spl=p.strip().split('/')
+    for i in spl:
+        if len(l)!=0:
+            l.append(l[-1]+'/'+i)
+        else:
+            l.append(i)
+    return l
 
+def ip2higlist(p):
+    l=[]
+    spl=p.strip().split('.')
+    for i in spl:
+        if len(l)!=0:
+            l.append(l[-1]+'.'+i)
+        else:
+            l.append(i)
+    return l
 
+def list2str(l):
+    return ''.join(l)
+#################################################
+
+#################################################
+#* investigator
+
+def replace_path_name(path_name):
+    for i in REPLACE_DICT[DETECTION_LEVEL]:
+        if i in path_name:
+            return REPLACE_DICT[DETECTION_LEVEL][i]
+    return path_name
+
+#################################################

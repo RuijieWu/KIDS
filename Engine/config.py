@@ -8,10 +8,10 @@ Config for whole GNN Engine
 ########################################################
 
 # The directory of the raw logs
-RAW_DIR = "/home/postgres/kairos/CADETS-E3-JSON/"
+RAW_DIR = "/home/postgres/kairos/Dataset/CADETS-E3-JSON/"
 
 # The directory to save all artifacts
-ARTIFACT_DIR = "./artifact/"
+ARTIFACT_DIR = "/home/postgres/kairos/artifact/"
 
 # The directory to save the vectorized graphs
 GRAPHS_DIR = ARTIFACT_DIR + "graphs/"
@@ -204,15 +204,20 @@ KEYWORDS = {
 #########################################################
 ATTACK_NODES = {
     "low":[
-        '/tmp/vUgefal',
-        'vUgefal',
-        '/var/log/devc',
-        '/etc/passwd',
-        '81.49.200.166',
-        '61.167.39.128',
-        '78.205.235.65',
-        '139.123.0.113',
-        "'nginx'",
+#*        '/tmp/vUgefal',
+#*        'vUgefal',
+#*        '/var/log/devc',
+#*        '/etc/passwd',
+#*        '81.49.200.166',
+#*        '61.167.39.128',
+#*        '78.205.235.65',
+#*        '139.123.0.113',
+#*        "'nginx'",
+        "sysctl",
+        "mail",
+        "smtpd",
+        "service",
+        "/bin/sh"
     ],
     "medium":[
         
@@ -223,6 +228,7 @@ ATTACK_NODES = {
 }
 
 REPLACE_DICT = {
+    "low":{
     '/run/shm/': '/run/shm/*',
     '/home/admin/.cache/mozilla/firefox/': '/home/admin/.cache/mozilla/firefox/*',
     '/home/admin/.mozilla/firefox': '/home/admin/.mozilla/firefox*',
@@ -235,11 +241,15 @@ REPLACE_DICT = {
     '/etc/bash_completion.d/': '/etc/bash_completion.d/*',
     '/usr/bin/python2.7': '/usr/bin/python2.7/*',
     '/usr/lib/python2.7': '/usr/lib/python2.7/*',
+    },
+    "medium":{},
+    "high":{}
 }
 
-ATTACK_LIST = [
-#*    ARTIFACT_DIR+'graph_4_6/2018-04-06 11:18:26.126177915~2018-04-06 11:33:35.116170745.txt',
-#*    ARTIFACT_DIR+'graph_4_6/2018-04-06 11:33:35.116170745~2018-04-06 11:48:42.606135188.txt',
-#*    ARTIFACT_DIR+'graph_4_6/2018-04-06 11:48:42.606135188~2018-04-06 12:03:50.186115455.txt',
-#*    ARTIFACT_DIR+'graph_4_6/2018-04-06 12:03:50.186115455~2018-04-06 14:01:32.489584227.txt',
-]
+ATTACK_LIST = {
+    "low":[],
+    "medium":[],
+    "high":[]
+}
+
+DEFAULT_SHAPE = "box"
