@@ -1,13 +1,14 @@
 import os
 import subprocess
 
-def add_audit_rule():
+def add_socket_audit_rule():
     """
     Add an audit rule using auditctl command.
     """
     try:
-        subprocess.run(['auditctl', '-a', 'always,exit', '-F', 'arch=b64', '-S', 'socket', '-S', 'connect', '-S', 'accept', '-S', 'bind', '-S', 'listen', '-S', 'sendto', '-S', 'recvfrom', '-S', 'sendmsg', '-S', 'recvmsg', '-k', 'socket_operations'], check=True)
-        subprocess.run(['auditctl', '-a', 'always,exit', '-F', 'arch=b32', '-S', 'socket', '-S', 'connect', '-S', 'accept', '-S', 'bind', '-S', 'listen', '-S', 'sendto', '-S', 'recvfrom', '-S', 'sendmsg', '-S', 'recvmsg', '-k', 'socket_operations'], check=True)
+        # chose command acco
+        subprocess.run(['sudo', 'auditctl', '-a', 'always,exit', '-F', 'arch=b64', '-S', 'socket', '-S', 'connect', '-S', 'accept', '-S', 'bind', '-S', 'listen', '-S', 'sendto', '-S', 'recvfrom', '-S', 'sendmsg', '-S', 'recvmsg', '-k', 'socket_operations'], check=True)
+        # subprocess.run(['sudo', 'auditctl', '-a', 'always,exit', '-F', 'arch=b32', '-S', 'socket', '-S', 'connect', '-S', 'accept', '-S', 'bind', '-S', 'listen', '-S', 'sendto', '-S', 'recvfrom', '-S', 'sendmsg', '-S', 'recvmsg', '-k', 'socket_operations'], check=True)
     except subprocess.CalledProcessError as e:
         print(f"Failed to add audit rule: {e}")
 
@@ -15,9 +16,8 @@ def add_file_watch_rule(directory):
     """
     Add a file watch rule for a specific directory.
     """
-    rule = f"-w {directory} -p rwxa -k my_folder_watch"
     try:
-        subprocess.run(['auditctl', rule], check=True)
+        subprocess.run(['auditctl', '-w', directory, '-p', 'rwxa', '-k', 'folder_watch'], check=True)
     except subprocess.CalledProcessError as e:
         print(f"Failed to add file watch rule: {e}")
 
@@ -31,19 +31,20 @@ def restart_auditd_service():
         print(f"Failed to restart auditd service: {e}")
 
 def main():
-    folder_to_watch = '/mnt/d/codefield/KIDS'  # Update with your folder path
+    folder_to_watch = '/home/ubuntu/softbei/KIDS'  # Update with your folder path
     
     # Check if the script is run as root
     if os.geteuid() != 0:
         print("This script must be run as root.")
         return
+    
+    # Restart auditd service
+    restart_auditd_service()
 
     # Add audit rules
     add_file_watch_rule(folder_to_watch)
-    add_audit_rule()
+    add_socket_audit_rule()
 
-    # Restart auditd service
-    restart_auditd_service()
 
     print("Audit rules added and auditd service restarted successfully.")
 
