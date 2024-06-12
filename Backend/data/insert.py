@@ -67,6 +67,10 @@ def parse_socket_operations_logs(logs):
     for entry in log_entries:
         lines = entry.split('\n')
         event = {}
+        src_ip = None
+        src_port = None
+        dest_ip = None
+        dest_port = None
         for line in lines:
             if line.startswith('type=SYSCALL'):
                 if 'comm=' in line:
@@ -83,9 +87,11 @@ def parse_socket_operations_logs(logs):
                         src_port = int(saddr[8:12], 16)
                         dest_ip = '.'.join(str(int(saddr[i:i+2], 16)) for i in range(12, 20, 2))
                         dest_port = int(saddr[20:24], 16)
-                        event['source_address'] = f"{src_ip}:{src_port}"
-                        event['destination_address'] = f"{dest_ip}:{dest_port}"
-        if event:
+        if event and 'process' in event and 'event' in event and src_ip and src_port and dest_ip and dest_port:
+            event['source_ip'] = src_ip
+            event['source_port'] = src_port
+            event['destination_ip'] = dest_ip
+            event['destination_port'] = dest_port
             events.append(event)
 
     return events
