@@ -1,6 +1,10 @@
 import os
 import json
 from datetime import datetime, timedelta
+from fastapi import FastAPI, HTTPException, Query
+from typing import Optional
+
+app = FastAPI()
 
 def format_time(time):
     """
@@ -23,9 +27,21 @@ def run_ausearch(keyword, start_time, end_time):
         print(f"Failed to run ausearch: {e}")
         return None
 
+def extract_timestamp_nsec(line):
+    """
+    Extract the timestamp from a line and convert it to nanoseconds.
+    """
+    if 'msg=audit(' in line:
+        timestamp_str = line.split('msg=audit(')[1].split(')')[0]
+        seconds_str, nano_str = timestamp_str.split(':')
+        timestamp_dt = datetime.utcfromtimestamp(float(seconds_str))
+        timestamp_nsec = int(float(seconds_str) * 1_000_000_000) + int(nano_str)
+        return timestamp_nsec
+    return None
+
 def parse_folder_watch_logs(logs):
     """
-    Parse ausearch logs specifically for folder_watch to extract the process name, file name, and event type.
+    Parse ausearch logs specifically for folder_watch to extract the process name, file name, event type, and timestamp.
     """
     events = []
     log_entries = logs.split('----\n')
@@ -35,6 +51,9 @@ def parse_folder_watch_logs(logs):
         event = {}
         for line in lines:
             if line.startswith('type=SYSCALL'):
+                timestamp_nsec = extract_timestamp_nsec(line)
+                if timestamp_nsec:
+                    event['timestamp_rec'] = timestamp_nsec
                 if 'comm=' in line:
                     event['process'] = line.split('comm=')[1].split()[0].strip('"')
                 if 'syscall=' in line:
@@ -59,7 +78,7 @@ def parse_folder_watch_logs(logs):
 
 def parse_socket_operations_logs(logs):
     """
-    Parse ausearch logs specifically for socket_operations to extract the process name, addresses, and event type.
+    Parse ausearch logs specifically for socket_operations to extract the process name, addresses, event type, and timestamp.
     """
     events = []
     log_entries = logs.split('----\n')
@@ -73,6 +92,9 @@ def parse_socket_operations_logs(logs):
         dest_port = None
         for line in lines:
             if line.startswith('type=SYSCALL'):
+                timestamp_nsec = extract_timestamp_nsec(line)
+                if timestamp_nsec:
+                    event['timestamp_rec'] = timestamp_nsec
                 if 'comm=' in line:
                     event['process'] = line.split('comm=')[1].split()[0].strip('"')
                 if 'syscall=' in line:
@@ -96,37 +118,31 @@ def parse_socket_operations_logs(logs):
 
     return events
 
-def write_to_file(filename, content):
-    """
-    Write content to a file.
-    """
-    with open(filename, 'w') as f:
-        f.write(content)
+@app.get("/audit-logs")
+def get_audit_logs(start_time: str, end_time: str):
+    try:
+        start_time_dt = datetime.strptime(start_time, '%Y-%m-%dT%H:%M:%S')
+        end_time_dt = datetime.strptime(end_time, '%Y-%m-%dT%H:%M:%S')
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Incorrect time format. Use 'YYYY-MM-DDTHH:MM:SS' format.")
 
-def main():
-    # Keywords used in the audit rules
     keywords = ['socket_operations', 'folder_watch']
+    results = {}
 
-    # Calculate the time range for the audit logs (past one hour)
-    end_time = datetime.now()  # Current time
-    start_time = end_time - timedelta(days=1)
-
-    # Check audit logs for each keyword within the past one hour
     for keyword in keywords:
-        logs = run_ausearch(keyword, start_time, end_time)
+        logs = run_ausearch(keyword, start_time_dt, end_time_dt)
         if logs:
             if keyword == 'folder_watch':
                 events = parse_folder_watch_logs(logs)
-                filename = f"{keyword}_audit_logs.json"
-                write_to_file(filename, json.dumps(events, indent=4))
-                print(f"Audit logs for keyword '{keyword}' have been written to {filename}.")
+                results['folder_watch'] = events
             elif keyword == 'socket_operations':
                 events = parse_socket_operations_logs(logs)
-                filename = f"{keyword}_audit_logs.json"
-                write_to_file(filename, json.dumps(events, indent=4))
-                print(f"Audit logs for keyword '{keyword}' have been written to {filename}.")
+                results['socket_operations'] = events
         else:
-            print(f"No logs found for keyword '{keyword}'.")
+            results[keyword] = []
+
+    return results
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
