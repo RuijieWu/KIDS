@@ -1,21 +1,22 @@
 import os
+import subprocess
 import json
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel
 from typing import Optional
 
 app = FastAPI()
 
+class DirectoryPath(BaseModel):
+    path: str
+
+# Function to format time for ausearch
 def format_time(time):
-    """
-    Format a datetime object to the string format required by ausearch.
-    """
     return time.strftime('%m/%d/%Y %H:%M:%S')
 
+# Function to run ausearch
 def run_ausearch(keyword, start_time, end_time):
-    """
-    Run ausearch with the specified keyword and time range, then return the output.
-    """
     start_str = format_time(start_time)
     end_str = format_time(end_time)
     command = f"ausearch -k {keyword} -ts {start_str} -te {end_str}"
@@ -27,10 +28,8 @@ def run_ausearch(keyword, start_time, end_time):
         print(f"Failed to run ausearch: {e}")
         return None
 
+# Function to extract timestamp in nanoseconds
 def extract_timestamp_nsec(line):
-    """
-    Extract the timestamp from a line and convert it to nanoseconds.
-    """
     if 'msg=audit(' in line:
         timestamp_str = line.split('msg=audit(')[1].split(')')[0]
         seconds_str, nano_str = timestamp_str.split(':')
@@ -39,13 +38,10 @@ def extract_timestamp_nsec(line):
         return timestamp_nsec
     return None
 
+# Function to parse folder watch logs
 def parse_folder_watch_logs(logs):
-    """
-    Parse ausearch logs specifically for folder_watch to extract the process name, file name, event type, and timestamp.
-    """
     events = []
     log_entries = logs.split('----\n')
-
     for entry in log_entries:
         lines = entry.split('\n')
         event = {}
@@ -73,16 +69,12 @@ def parse_folder_watch_logs(logs):
                     event['file'] = line.split('name=')[1].split()[0].strip('"')
         if event:
             events.append(event)
-
     return events
 
+# Function to parse socket operations logs
 def parse_socket_operations_logs(logs):
-    """
-    Parse ausearch logs specifically for socket_operations to extract the process name, addresses, event type, and timestamp.
-    """
     events = []
     log_entries = logs.split('----\n')
-
     for entry in log_entries:
         lines = entry.split('\n')
         event = {}
@@ -115,8 +107,57 @@ def parse_socket_operations_logs(logs):
             event['destination_ip'] = dest_ip
             event['destination_port'] = dest_port
             events.append(event)
-
     return events
+
+# Function to add socket audit rule
+def add_socket_audit_rule():
+    try:
+        subprocess.run(['sudo', 'auditctl', '-a', 'always,exit', '-F', 'arch=b64', '-S', 'sendto', '-S', 'recvfrom', '-k', 'socket_operations'], check=True)
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add audit rule: {e}")
+
+# Function to add file watch rule
+def add_file_watch_rule(directory):
+    try:
+        subprocess.run(['auditctl', '-w', directory, '-p', 'rwxa', '-k', 'folder_watch'], check=True)
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add file watch rule: {e}")
+
+# Function to restart auditd service
+def restart_auditd_service():
+    try:
+        subprocess.run(['systemctl', 'restart', 'auditd'], check=True)
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to restart auditd service: {e}")
+
+# Function to clear audit logs
+def clear_audit_logs():
+    try:
+        subprocess.run(['sudo', 'rm', '-rf', '/var/log/audit'], check=True)
+        os.makedirs('/var/log/audit', exist_ok=True)  # Ensure the directory exists
+        subprocess.run(['sudo', 'touch', '/var/log/audit/audit.log'], check=True)
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear audit logs: {e}")
+
+@app.post("/setup-audit")
+def setup_audit(directory: DirectoryPath):
+    folder_to_watch = directory.path  # Get the folder path from the request body
+    
+    # Check if the script is run as root
+    if os.geteuid() != 0:
+        raise HTTPException(status_code=403, detail="This script must be run as root.")
+    
+    # Clear audit logs
+    clear_audit_logs()
+    
+    # Restart auditd service
+    restart_auditd_service()
+
+    # Add audit rules
+    add_file_watch_rule(folder_to_watch)
+    add_socket_audit_rule()
+
+    return {"message": "Audit logs cleared, audit rules added, and auditd service restarted successfully."}
 
 @app.get("/audit-logs")
 def get_audit_logs(start_time: str, end_time: str):
