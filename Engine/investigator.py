@@ -1,6 +1,6 @@
 '''
 Date: 2024-06-12 22:36:44
-LastEditTime: 2024-06-12 23:54:19
+LastEditTime: 2024-06-13 20:08:03
 Description: 
 '''
 import torch
@@ -13,6 +13,34 @@ from tqdm import tqdm
 from config import *
 from utils import *
 
+#? Aberration Investigate
+#* {
+#*     TimeWindow: 2018-04-05 00:00:00.019021794~2018-04-05 00:15:00.828996051.txt
+#*     TimeWindowIndex: 0
+#*     Thr: thr // 异常的阈值
+#*     Count: count // 超过阈值的边的数量
+#*     Nodes_count: len(unique_nodes)
+#*     Edges_count: event_count
+#* }
+#* .eg
+#* 2024-06-09 01:19:49 - INFO - Time window: 2018-04-05 00:00:00.019021794~2018-04-05 00:15:00.828996051.txt
+#* 2024-06-09 01:19:49 - INFO - Time window index: 0
+#* 2024-06-09 01:19:50 - INFO - thr:1.9376321934097978
+#* 2024-06-09 01:19:50 - INFO - Average loss: 2.422255516815709
+#* 2024-06-09 01:19:50 - INFO - Num of anomalous edges within the time window: 1093
+#* 2024-06-09 01:19:50 - INFO - Percentage of anomalous edges: 0.08894856770833333
+#* 2024-06-09 01:19:50 - INFO - Anomalous node count: 73
+#* 2024-06-09 01:19:50 - INFO - Anomalous edge count: 87
+
+#? Attack Investigation
+#* Subject:{SubjectType,SubjectName,isDangerous}
+#* Action:{ActionType,isDangerous}
+#* Object:{ObjectType,ObjectName,isDangerous}
+#* .eg
+#*	9380699345889908536 -> 199462899167661811 [label=EVENT_WRITE color=blue]
+#*	9380699345889908536 [label="{'subject': 'syslogd'}9" color=blue shape=box]
+#*	6635167680731577424 [label="{'file': '/var/log/auth.log'}9" color=blue shape=oval]
+#*	9380699345889908536 -> 6635167680731577424 [label=EVENT_WRITE color=blue]
 
 def cal_anomaly_loss(loss_list, edge_list):
     logger = open("./aberration_investigation.txt","a",encoding="utf-8")

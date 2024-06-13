@@ -1,6 +1,6 @@
 '''
 Date: 2024-06-12 21:29:27
-LastEditTime: 2024-06-12 23:54:41
+LastEditTime: 2024-06-13 19:16:30
 Description: Embed Events from database into GNN
 '''
 from sklearn.feature_extraction import FeatureHasher
@@ -12,6 +12,13 @@ import torch
 
 from config import *
 from utils import *
+
+#*     time: {
+#*         events_count:len(events)
+#*         edges_count:len(edge_list)
+#*      }
+#*
+#* The are statics of the database
 
 def gen_feature(cur,recording = False):
     # Firstly obtain all node labels
@@ -100,6 +107,6 @@ def gen_vectorized_graphs(
         dataset.msg = dataset.msg.to(torch.float)
         dataset.t = dataset.t.to(torch.long)
         if recording:
-            torch.save(dataset, graphs_dir + "/graph_4_" + str(day) + ".TemporalData.simple")
+            torch.save(dataset, graphs_dir + "/graph_" + str(day) + ".TemporalData.simple")
         graphs.append(dataset)
     return graphs

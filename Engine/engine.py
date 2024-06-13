@@ -15,6 +15,18 @@ from utils import *
 from embedder import *
 from investigator import *
 
+#* {
+#*     Time: time_interval
+#*     Loss: loss:.4f
+#*     Nodes_count: len(unique_nodes)
+#*     Edges_count: event_count
+#* }
+#* eg.
+#* 2024-06-08 22:33:42 - INFO - Time: 2018-04-07 23:03:54.806921896~2018-04-07 23:20:00.066899749, Loss: 1.1485, Nodes_count: 56599, Edges_count: 92160
+#* 2024-06-08 22:33:47 - INFO - Time: 2018-04-07 23:20:00.066899749~2018-04-07 23:35:19.036879610, Loss: 0.6923, Nodes_count: 56608, Edges_count: 14336
+#* 2024-06-08 22:33:51 - INFO - Time: 2018-04-07 23:35:19.036879610~2018-04-07 23:50:19.096860042, Loss: 0.7274, Nodes_count: 56908, Edges_count: 14336
+
+
 #* device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 #* criterion = nn.CrossEntropyLoss()
 #* max_node_num = 268243  #! the number of nodes in node2id table +1
@@ -205,7 +217,7 @@ def load_data():
     print("[*] Loading graph")
     #? 会提示 RuntimeError: vstack expects a non-empty TensorList
     #* graph = gen_vectorized_graphs(events, node2higvec=node2higvec, rel2vec=rel2vec)
-    #* graph = torch.load("./artifact/graph_4_7.TemporalData.simple").to(device=device)
+    #* graph = torch.load("./artifact/graph_7.TemporalData.simple").to(device=device)
     graphs = gen_vectorized_graphs(cur=cur, node2higvec=node2higvec, rel2vec=rel2vec)
     
     #* test
