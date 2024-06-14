@@ -1,6 +1,6 @@
 '''
 Date: 2024-06-12 22:36:44
-LastEditTime: 2024-06-14 16:49:08
+LastEditTime: 2024-06-14 22:50:10
 Description: 
 '''
 import torch
@@ -33,9 +33,9 @@ from utils import *
 #* 2024-06-09 01:19:50 - INFO - Anomalous edge count: 87
 
 #? Attack Investigation
-#* Subject:{SubjectType,SubjectName,isDangerous}
-#* Action:{ActionType,isDangerous}
-#* Object:{ObjectType,ObjectName,isDangerous}
+#* Subject:{SubjectType,SubjectName}
+#* Action:{ActionType}
+#* Object:{ObjectType,ObjectName}
 #* .eg
 #*	9380699345889908536 -> 199462899167661811 [label=EVENT_WRITE color=blue]
 #*	9380699345889908536 [label="{'subject': 'syslogd'}9" color=blue shape=box]
@@ -167,7 +167,7 @@ def anomalous_queue_construction(
             jdata = eval(l)
             edge_loss_list.append(jdata['loss'])
             edge_list.append([str(jdata['srcmsg']), str(jdata['dstmsg'])])
-        node_count, loss_avg, node_set, edge_set = cal_anomaly_loss(edge_loss_list, edge_list)
+        count, loss_avg, node_set, edge_set = cal_anomaly_loss(edge_loss_list, edge_list)
         current_tw['name'] = f_path
         current_tw['loss'] = loss_avg
         current_tw['index'] = index_count
@@ -190,18 +190,19 @@ def anomalous_queue_construction(
         edge_count = len(edge_list)
         node_num = len(node_set)
         edge_num = len(edge_set)
-        logger.write(f"Average loss: {loss_avg}\n")
-        logger.write(f"Num of anomalous edges within the time window: {node_count}\n")
-        logger.write(f"Percentage of anomalous edges: {node_count / edge_count}\n")
-        logger.write(f"Anomalous node count: {node_num}\n")
-        logger.write(f"Anomalous edge count: {edge_num}\n")
+        logger.write(f"Average loss: {loss_avg}")
+        logger.write(f"Num of anomalous edges within the time window: {count}")
+        logger.write(f"Percentage of anomalous edges: {count / edge_count}")
+        logger.write(f"Anomalous node count: {node_num}")
+        logger.write(f"Anomalous edge count: {edge_num}")
         logger.write("**************************************************\n")
         save_aberration_statics(
             cur,
             connect,
             f_path[:-4],
-            node_count,
-            node_count / edge_count,
+            loss_avg,
+            count,
+            count / count,
             node_num,
             edge_num
         )

@@ -1,6 +1,6 @@
 '''
 Date: 2024-06-12 21:29:27
-LastEditTime: 2024-06-14 16:24:53
+LastEditTime: 2024-06-14 22:50:35
 Description: Embed Events from database into GNN
 '''
 from sklearn.feature_extraction import FeatureHasher

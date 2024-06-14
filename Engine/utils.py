@@ -201,31 +201,68 @@ def replace_path_name(path_name):
             return REPLACE_DICT[DETECTION_LEVEL][i]
     return path_name
 
-def save_dangers(cur,connect,dangers):
-    datalist = []
-    for i in subject_obj2hash.keys():
-        if len(i) != 64:
-            datalist.append([i] + [stringtomd5(subject_obj2hash[i]), subject_obj2hash[i]])
-    sql = '''insert into dangers_table
+def save_dangerous_actions(cur,connect,dangerous_action_list):
+    sql = '''insert into  anomalous_actions_table
                          values %s
             '''
-    ex.execute_values(cur, sql, datalist, page_size=10000)
+    ex.execute_values(cur, sql, dangerous_action_list, page_size=10000)
     connect.commit()
 
-def save_aberration(cur,connect,aberrations):
-    datalist = []
-    for i in subject_obj2hash.keys():
-        if len(i) != 64:
-            datalist.append([i] + [stringtomd5(subject_obj2hash[i]), subject_obj2hash[i]])
-    sql = '''insert into aberration_table
+def save_dangerous_subjects(cur,connect,dangerous_subjects):
+    sql = '''insert into dangerous_subjects_table
                          values %s
             '''
-    ex.execute_values(cur, sql, datalist, page_size=10000)
+    ex.execute_values(cur, sql, dangerous_subjects, page_size=10000)
     connect.commit()
 
-def save_aberration_statics(cur,connect,path,count, loss_avg, node_num, edge_num):
+def save_dangerous_objects(cur,connect,dangerous_objects):
+    sql = '''insert into  dangerous_objects_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, dangerous_objects, page_size=10000)
+    connect.commit()
+
+
+def save_anomalous_actions(cur,connect,anomalous_actions):
+    sql = '''insert into  dangerous_actions_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, anomalous_actions, page_size=10000)
+    connect.commit()
+
+def save_anomalous_subjects(cur,connect,anomalous_subjects):
+    sql = '''insert into anomalous_subjects_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, anomalous_subjects, page_size=10000)
+    connect.commit()
+
+def save_anomalous_objects(cur,connect,anomalous_objects):
+    sql = '''insert into  anomalous_objects_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, anomalous_objects, page_size=10000)
+    connect.commit()
+
+def save_aberration_statics(
+    cur,
+    connect,
+    path,
+    loss_avg,
+    count,
+    percentage,
+    node_num,
+    edge_num
+):
     datalist = []
-    datalist.append([path] + [count] + [loss_avg] + [node_num] + [edge_num])
+    datalist.append([
+        path,
+        loss_avg,
+        count,
+        percentage,
+        node_num,
+        edge_num
+    ])
     sql = '''insert into aberration_statics_table
                          values %s
             '''

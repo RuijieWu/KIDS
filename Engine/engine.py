@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import torch
 import numpy as np
@@ -8,6 +9,7 @@ from tqdm import tqdm
 from graphviz import Digraph
 import networkx as nx
 import community.community_louvain as community_louvain
+from config import *
 
 from model import *
 from config import *
@@ -238,6 +240,13 @@ def attack_investigate(cur,connect,begin_time,end_time,):
     # Plot and render candidate subgraph
     os.system(f"mkdir -p {ARTIFACT_DIR}/graph_visual/")
     graph_index = 0
+    dangerous_subjects = []
+    dangerous_objects = []
+    dangerous_actions = []
+    anomalous_subjects = []
+    anomalous_objects = []
+    anomalous_actions = []
+
     for c in communities:
         dot = Digraph(name="IntrusionDetectionGraph", comment="KIDS Engine Output", format="png")
         dot.graph_attr['rankdir'] = 'LR'
@@ -250,16 +259,26 @@ def attack_investigate(cur,connect,begin_time,end_time,):
                 return
             if "'subject': '" in temp_edge['srcmsg']:
                 src_shape = 'box'
+                subject_node_type = "Subject"
+                subject_node_name = temp_edge['srcmsg'][12:-1]
             elif "'file': '" in temp_edge['srcmsg']:
                 src_shape = 'oval'
+                subject_node_type = "File"
+                subject_node_name = temp_edge['srcmsg'][9:-1]
             elif "'netflow': '" in temp_edge['srcmsg']:
                 src_shape = 'diamond'
+                subject_node_type = "Netflow"
+                subject_node_name = temp_edge['srcmsg'][12:-1]
             else:
                 src_shape = DEFAULT_SHAPE
+                subject_node_type = "Subject"
+                subject_node_name = temp_edge['srcmsg'][12:-1]
             if attack_edge_flag(temp_edge['srcmsg']):
                 src_node_color = 'red'
+                dangerous_subjects.append([begin_time,end_time,subject_node_type,subject_node_name])
             else:
                 src_node_color = 'blue'
+                anomalous_subjects.append([begin_time,end_time,subject_node_type,subject_node_name])
             dot.node(name=str(hashgen(replace_path_name(temp_edge['srcmsg']))), label=str(
                 replace_path_name(temp_edge['srcmsg']) + str(
                     partition[str(hashgen(replace_path_name(temp_edge['srcmsg'])))])), color=src_node_color,
@@ -268,16 +287,26 @@ def attack_investigate(cur,connect,begin_time,end_time,):
                 # destination node
             if "'subject': '" in temp_edge['dstmsg']:
                 dst_shape = 'box'
+                object_node_type = "Subject"
+                object_node_name = temp_edge['srcmsg'][12:-1]
             elif "'file': '" in temp_edge['dstmsg']:
                 dst_shape = 'oval'
+                object_node_type = "File"
+                object_node_name = temp_edge['srcmsg'][9:-1]
             elif "'netflow': '" in temp_edge['dstmsg']:
                 dst_shape = 'diamond'
+                object_node_type = "Netflow"
+                object_node_name = temp_edge['srcmsg'][12:-1]
             else:
                 dst_shape = DEFAULT_SHAPE
+                object_node_type = "Subject"
+                object_node_name = temp_edge['srcmsg'][12:-1]
             if attack_edge_flag(temp_edge['dstmsg']):
                 dst_node_color = 'red'
+                dangerous_objects.append([begin_time,end_time,object_node_type,object_node_name])
             else:
                 dst_node_color = 'blue'
+                anomalous_objects.append([begin_time,end_time,object_node_type,object_node_name])
             dot.node(name=str(hashgen(replace_path_name(temp_edge['dstmsg']))), label=str(
                 replace_path_name(temp_edge['dstmsg']) + str(
                     partition[str(hashgen(replace_path_name(temp_edge['dstmsg'])))])), color=dst_node_color,
@@ -285,21 +314,46 @@ def attack_investigate(cur,connect,begin_time,end_time,):
 
             if attack_edge_flag(temp_edge['srcmsg']) and attack_edge_flag(temp_edge['dstmsg']):
                 edge_color = 'red'
+                dangerous_actions.append([
+                    begin_time,
+                    end_time,
+                    subject_node_type,
+                    subject_node_name,
+                    temp_edge['edge_type'],
+                    object_node_type,
+                    object_node_name
+                ])
             else:
                 edge_color = 'blue'
+                anomalous_actions.append([
+                    begin_time,
+                    end_time,
+                    subject_node_type,
+                    subject_node_name,
+                    temp_edge['edge_type'],
+                    object_node_type,
+                    object_node_name
+                ])
             dot.edge(str(hashgen(replace_path_name(temp_edge['srcmsg']))),
                     str(hashgen(replace_path_name(temp_edge['dstmsg']))), label=temp_edge['edge_type'],
                     color=edge_color)
 
-        dot.render(f"{ARTIFACT_DIR}/graph_visual/subgraph_{begin_time}_{end_time}_{str(graph_index)}", view=False)
+        #*dot.render(f"{ARTIFACT_DIR}/graph_visual/subgraph_{begin_time}_{end_time}_{str(graph_index)}", view=False)
+        save_dangerous_actions(cur,connect,dangerous_actions)
+        save_dangerous_subjects(cur,connect,dangerous_subjects)
+        save_dangerous_objects(cur,connect,dangerous_objects)
+        save_anomalous_actions(cur,connect,anomalous_actions)
+        save_anomalous_subjects(cur,connect,anomalous_subjects)
+        save_anomalous_objects(cur,connect,anomalous_objects)
+        dot.render(f"{ARTIFACT_DIR}/graph_visual/{begin_time}~{end_time}_{str(graph_index)}", view=False)
         graph_index += 1
 
 def aberration_investigate(cur,connect,recoding = False):
     print("Investigating Aberration")
     node_IDF, tw_list = compute_IDF()
     history_list = anomalous_queue_construction(
-        cur,
-        connect,
+        cur=cur,
+        connect=connect,
         node_IDF=node_IDF,
         tw_list=tw_list,
         graph_dir_path=f"{ARTIFACT_DIR}/graph_list/"
@@ -307,34 +361,91 @@ def aberration_investigate(cur,connect,recoding = False):
     if recoding:
         torch.save(history_list, f"{ARTIFACT_DIR}/graph_history_list")
 
+def arg_parse(args: list[str]):
+    try:
+        print(args[0])
+        if args[1] in ("--help","-h"):
+            print(HELP_MSG)
+        elif args[1] == "init":
+            dataset_path = "./"
+            dataset = "CADETS-E3"
+            for index,arg in enumerate(args):
+                if arg.lower() in ("-path","--path"):
+                    if args[index+1][-1] == "/":
+                        dataset_path = args[index+1]
+                    else:
+                        dataset_path = args[index+1][:-1]
+                if arg.lower() in ("-dataset","--dataset"):
+                    if args[index+1] in ("CADETS-E3","CADETS-E5","CADETS-TC"):
+                        dataset = args[index+1]
+                    else:
+                        return False, "error", "[*] Dataset Format provided is not allowed"
+            return "init",dataset_path,dataset
+        elif args[1] == "run":
+            begin_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+            end_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+            for index,arg in enumerate(args):
+                if arg.lower() in ("-begin","--begin"):
+                    begin_time = f"{args[index+1]} 00:00:00"
+                    try:
+                        if ":" in args[index+2]:
+                            begin_time = f"{args[index+1]} {args[index+2]}"
+                    except IndexError:
+                        pass
+                if arg.lower() in ("-end","--end"):
+                    end_time = f"{args[index+1]} 00:00:00"
+                    try:
+                        if ":" in args[index+2]:
+                            end_time = f"{args[index+1]} {args[index+2]}"
+                    except IndexError:
+                        pass
+            return "run",begin_time,end_time
+        else:
+            return False, "error", "[*] Wrong Arguments!"
+    except IndexError:
+        return False, "error", "[*] Wrong Arguments!"
+
+def init():
+    pass
+
+
 def main():
     '''
     Entrance of this Engine
     '''
-    cur, connect = init_database_connection()
-    graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data(
-        cur,
-        "2018-04-12 00:00:00",
-        "2018-04-16 00:00:00"
-    )
-    analyse(
-        graph,
-        memory,
-        gnn,
-        link_pred,
-        neighbor_loader,
-        nodeid2msg
-    )
-    aberration_investigate(
-        cur,
-        connect
-    )
-    attack_investigate(
-        cur,
-        connect,
-        "2018-04-12 00:00:00",
-        "2018-04-16 00:00:00"
-    )
+    arguments = arg_parse(sys.argv)
+    if not arguments[0]:
+        print(arguments[2])
+        sys.exit(0)
+    if arguments[0] == "init":
+        init()
+    if arguments[0] == "run":
+        begin_time = arguments[1]
+        end_time = arguments[2]
+        cur, connect = init_database_connection()
+    #    graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data(
+    #        cur=cur,
+    #        begin_time=begin_time,
+    #        end_time=end_time
+    #    )
+    #    analyse(
+    #        graphs=graph,
+    #        memory=memory,
+    #        gnn=gnn,
+    #        link_pred=link_pred,
+    #        neighbor_loader=neighbor_loader,
+    #        nodeid2msg=nodeid2msg
+    #    )
+        aberration_investigate(
+            cur=cur,
+            connect=connect
+        )
+        attack_investigate(
+            cur=cur,
+            connect=connect,
+            begin_time=begin_time,
+            end_time=end_time
+        )
 
 if __name__ == "__main__":
     main()

@@ -46,7 +46,7 @@ HOST = '/var/run/postgresql/'
 USER = 'postgres'
 
 # The password to the database user
-PASSWORD = ''
+PASSWORD = 'postgres'
 
 # The port number for Postgres
 PORT = '5432'
@@ -253,3 +253,5 @@ ATTACK_LIST = {
 }
 
 DEFAULT_SHAPE = "box"
+
+HELP_MSG = ""
