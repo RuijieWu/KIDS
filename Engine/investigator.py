@@ -1,6 +1,6 @@
 '''
 Date: 2024-06-12 22:36:44
-LastEditTime: 2024-06-13 20:08:03
+LastEditTime: 2024-06-14 16:49:08
 Description: 
 '''
 import torch
@@ -139,7 +139,13 @@ def cal_set_rel(s1, s2, node_IDF, tw_list):
             count += 1
     return count
 
-def anomalous_queue_construction(node_IDF, tw_list, graph_dir_path):
+def anomalous_queue_construction(
+    cur,
+    connect,
+    node_IDF,
+    tw_list,
+    graph_dir_path
+):
     logger = open("./aberration_investigation.txt","a",encoding="utf-8")
     history_list = []
     current_tw = {}
@@ -161,7 +167,7 @@ def anomalous_queue_construction(node_IDF, tw_list, graph_dir_path):
             jdata = eval(l)
             edge_loss_list.append(jdata['loss'])
             edge_list.append([str(jdata['srcmsg']), str(jdata['dstmsg'])])
-        count, loss_avg, node_set, edge_set = cal_anomaly_loss(edge_loss_list, edge_list)
+        node_count, loss_avg, node_set, edge_set = cal_anomaly_loss(edge_loss_list, edge_list)
         current_tw['name'] = f_path
         current_tw['loss'] = loss_avg
         current_tw['index'] = index_count
@@ -181,12 +187,24 @@ def anomalous_queue_construction(node_IDF, tw_list, graph_dir_path):
             temp_hq = [copy.deepcopy(current_tw)]
             history_list.append(temp_hq)
         index_count += 1
+        edge_count = len(edge_list)
+        node_num = len(node_set)
+        edge_num = len(edge_set)
         logger.write(f"Average loss: {loss_avg}\n")
-        logger.write(f"Num of anomalous edges within the time window: {count}\n")
-        logger.write(f"Percentage of anomalous edges: {count / len(edge_list)}\n")
-        logger.write(f"Anomalous node count: {len(node_set)}\n")
-        logger.write(f"Anomalous edge count: {len(edge_set)}\n")
+        logger.write(f"Num of anomalous edges within the time window: {node_count}\n")
+        logger.write(f"Percentage of anomalous edges: {node_count / edge_count}\n")
+        logger.write(f"Anomalous node count: {node_num}\n")
+        logger.write(f"Anomalous edge count: {edge_num}\n")
         logger.write("**************************************************\n")
+        save_aberration_statics(
+            cur,
+            connect,
+            f_path[:-4],
+            node_count,
+            node_count / edge_count,
+            node_num,
+            edge_num
+        )
 
     return history_list
 

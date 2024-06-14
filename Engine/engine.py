@@ -52,11 +52,8 @@ def test(
     2. 逐批次遍历推理数据，计算并记录损失值
     返回时间窗口内的损失情况
     '''
-    if os.path.exists(path):
-        pass
-    else:
-        os.mkdir(path)
-    
+    os.system(f"mkdir -p {path}")
+
     logger = open("./analysis.txt","a",encoding="utf-8")
     logger.write(f"[*] Analysis at {time.ctime()}\n")
     ###? Init
@@ -83,7 +80,7 @@ def test(
     # Record the running time to evaluate the performance
     print("[*] Analyse Begin")
     start = time.perf_counter()
-    
+
     for batch in inference_data.seq_batches(batch_size=BATCH):
 
         #*    dataset.src = torch.tensor(src)
@@ -126,7 +123,7 @@ def test(
 
         # compute the loss for each edge
         each_edge_loss = cal_pos_edges_loss_multiclass(pos_out, y_true)
-        
+
         for i in range(len(pos_out)):
             srcnode = int(src[i])
             dstnode = int(pos_dst[i])
@@ -182,50 +179,36 @@ def test(
 
     return time_with_loss
 
-def listen():
-    cur, _ = init_database_connection()
-    events=[]
-    #! range(2,14)
-    for day in tqdm(range(7, 8)):
-        start_timestamp = datetime_to_ns_time_US('2018-04-' + str(day) + ' 00:00:00')
-        end_timestamp = datetime_to_ns_time_US('2018-04-' + str(day + 1) + ' 00:00:00')
-        sql = """
-        select * from event_table
-        where
-              timestamp_rec>'%s' and timestamp_rec<'%s'
-               ORDER BY timestamp_rec;
-        """ % (start_timestamp, end_timestamp)
-        cur.execute(sql)
-        events += cur.fetchall()
-    return events
-
-def load_data():
+def load_data(cur,begin_time,end_time):
     '''
     initialize and load data
     '''
-    #* Embedding
     print("[*] Loading Data")
-    cur, _ = init_database_connection()
-    print("[*] Loading rel2vec")
-    rel2vec = gen_relation_onehot()
-    print("[*] Loading node2higvec")
-    node2higvec = gen_feature(cur=cur)
-    #* rel2vec = torch.load(ARTIFACT_DIR + "rel2vec")
-    #* node2higvec = torch.load(ARTIFACT_DIR + "node2higvec")
-    print("[*] Loading Events")
-    #* events = listen()
-    print("[*] Loading graph")
-    #? 会提示 RuntimeError: vstack expects a non-empty TensorList
-    #* graph = gen_vectorized_graphs(events, node2higvec=node2higvec, rel2vec=rel2vec)
-    #* graph = torch.load("./artifact/graph_7.TemporalData.simple").to(device=device)
-    graphs = gen_vectorized_graphs(cur=cur, node2higvec=node2higvec, rel2vec=rel2vec)
-    
-    #* test
+
     print("[*] Loading nodeid2msg")
     nodeid2msg = gen_nodeid2msg(cur=cur)
+
+    print("[*] Loading rel2vec")
+    rel2vec = gen_relation_onehot()
+    #* rel2vec = torch.load(ARTIFACT_DIR + "rel2vec")
+
+    print("[*] Loading node2higvec")
+    node2higvec = gen_feature(nodeid2msg)
+    #* node2higvec = torch.load(ARTIFACT_DIR + "node2higvec")
+
+    print("[*] Loading graphs")
+    graphs = gen_vectorized_graphs(
+        cur=cur,
+        node2higvec=node2higvec,
+        rel2vec=rel2vec,
+        begin_time=begin_time,
+        end_time=end_time
+    )
+    #* graph = torch.load("./artifact/graph_7.TemporalData.simple").to(device=device)
+
     print("[*] Loading model")
+    memory, gnn, link_pred, neighbor_loader = torch.load(MODELS_PATH,map_location=device)
     #* memory, gnn, link_pred, neighbor_loader = torch.load(f"{MODELS_DIR}/models.pt",map_location=device)
-    memory, gnn, link_pred, neighbor_loader = torch.load(f"{MODELS_DIR}cadets3_models.pt",map_location=device)
 
     return graphs, memory, gnn, link_pred, neighbor_loader, nodeid2msg
 
@@ -249,14 +232,14 @@ def analyse(
             path=ARTIFACT_DIR + "graph_list"
         )
 
-def attack_investigate():
+def attack_investigate(cur,connect,begin_time,end_time,):
     print("Investigating Attacks")
     gg, communities, partition = community_discover()
     # Plot and render candidate subgraph
     os.system(f"mkdir -p {ARTIFACT_DIR}/graph_visual/")
     graph_index = 0
     for c in communities:
-        dot = Digraph(name="MyPicture", comment="the test", format="pdf")
+        dot = Digraph(name="IntrusionDetectionGraph", comment="KIDS Engine Output", format="png")
         dot.graph_attr['rankdir'] = 'LR'
         for e in communities[c].edges:
             try:
@@ -308,13 +291,15 @@ def attack_investigate():
                     str(hashgen(replace_path_name(temp_edge['dstmsg']))), label=temp_edge['edge_type'],
                     color=edge_color)
 
-        dot.render(f'{ARTIFACT_DIR}/graph_visual/subgraph_' + str(graph_index), view=False)
+        dot.render(f"{ARTIFACT_DIR}/graph_visual/subgraph_{begin_time}_{end_time}_{str(graph_index)}", view=False)
         graph_index += 1
 
-def aberration_investigate(recoding = False):
+def aberration_investigate(cur,connect,recoding = False):
     print("Investigating Aberration")
     node_IDF, tw_list = compute_IDF()
     history_list = anomalous_queue_construction(
+        cur,
+        connect,
         node_IDF=node_IDF,
         tw_list=tw_list,
         graph_dir_path=f"{ARTIFACT_DIR}/graph_list/"
@@ -323,10 +308,33 @@ def aberration_investigate(recoding = False):
         torch.save(history_list, f"{ARTIFACT_DIR}/graph_history_list")
 
 def main():
-    #* graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data()
-    #* analyse(graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg)
-    aberration_investigate()
-    attack_investigate()
+    '''
+    Entrance of this Engine
+    '''
+    cur, connect = init_database_connection()
+    graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data(
+        cur,
+        "2018-04-12 00:00:00",
+        "2018-04-16 00:00:00"
+    )
+    analyse(
+        graph,
+        memory,
+        gnn,
+        link_pred,
+        neighbor_loader,
+        nodeid2msg
+    )
+    aberration_investigate(
+        cur,
+        connect
+    )
+    attack_investigate(
+        cur,
+        connect,
+        "2018-04-12 00:00:00",
+        "2018-04-16 00:00:00"
+    )
 
 if __name__ == "__main__":
     main()

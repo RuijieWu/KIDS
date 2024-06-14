@@ -155,6 +155,19 @@ def hashgen(l):
 #################################################
 #* embedder
 
+def get_events(cur,begin_time,end_time):
+    start_timestamp = datetime_to_ns_time_US(begin_time)
+    end_timestamp = datetime_to_ns_time_US(end_time)
+    sql = """
+    select * from event_table
+    where
+          timestamp_rec>'%s' and timestamp_rec<'%s'
+           ORDER BY timestamp_rec;
+    """ % (start_timestamp, end_timestamp)
+    cur.execute(sql)
+    events = cur.fetchall()
+    return events
+
 def path2higlist(p):
     l=[]
     spl=p.strip().split('/')
@@ -188,4 +201,34 @@ def replace_path_name(path_name):
             return REPLACE_DICT[DETECTION_LEVEL][i]
     return path_name
 
+def save_dangers(cur,connect,dangers):
+    datalist = []
+    for i in subject_obj2hash.keys():
+        if len(i) != 64:
+            datalist.append([i] + [stringtomd5(subject_obj2hash[i]), subject_obj2hash[i]])
+    sql = '''insert into dangers_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, datalist, page_size=10000)
+    connect.commit()
+
+def save_aberration(cur,connect,aberrations):
+    datalist = []
+    for i in subject_obj2hash.keys():
+        if len(i) != 64:
+            datalist.append([i] + [stringtomd5(subject_obj2hash[i]), subject_obj2hash[i]])
+    sql = '''insert into aberration_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, datalist, page_size=10000)
+    connect.commit()
+
+def save_aberration_statics(cur,connect,path,count, loss_avg, node_num, edge_num):
+    datalist = []
+    datalist.append([path] + [count] + [loss_avg] + [node_num] + [edge_num])
+    sql = '''insert into aberration_statics_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, datalist, page_size=10000)
+    connect.commit()
 #################################################

@@ -18,6 +18,7 @@ GRAPHS_DIR = ARTIFACT_DIR + "graphs/"
 
 # The directory to save the models
 MODELS_DIR = ARTIFACT_DIR + "models/"
+MODELS_PATH = MODELS_DIR + "cadets3_models.pt"
 
 # The directory to save the results after testing
 TEST_RE = ARTIFACT_DIR + "test_re/"
