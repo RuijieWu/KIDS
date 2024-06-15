@@ -234,7 +234,7 @@ def analyse(
             path=ARTIFACT_DIR + "graph_list"
         )
 
-def attack_investigate(cur,connect,begin_time,end_time,):
+def attack_investigate(cur,connect):
     print("Investigating Attacks")
     gg, communities, partition = community_discover()
     # Plot and render candidate subgraph
@@ -250,6 +250,8 @@ def attack_investigate(cur,connect,begin_time,end_time,):
     for c in communities:
         dot = Digraph(name="IntrusionDetectionGraph", comment="KIDS Engine Output", format="png")
         dot.graph_attr['rankdir'] = 'LR'
+        begin_time = BEGIN_TIME
+        end_time = END_TIME
         for e in communities[c].edges:
             try:
                 temp_edge = gg.edges[e]
@@ -257,56 +259,56 @@ def attack_investigate(cur,connect,begin_time,end_time,):
                 #* dstnode = e['dstnode']
             except Exception as _:
                 return
+            if temp_edge['time'] > end_time:
+                end_time = temp_edge['time']
+            if temp_edge['time'] < begin_time:
+                begin_time = temp_edge['time']
+            subject_node_name = temp_edge['srcmsg'][13:-2]
             if "'subject': '" in temp_edge['srcmsg']:
                 src_shape = 'box'
                 subject_node_type = "Subject"
-                subject_node_name = temp_edge['srcmsg'][12:-1]
             elif "'file': '" in temp_edge['srcmsg']:
                 src_shape = 'oval'
                 subject_node_type = "File"
-                subject_node_name = temp_edge['srcmsg'][9:-1]
+                subject_node_name = temp_edge['srcmsg'][10:-2]
             elif "'netflow': '" in temp_edge['srcmsg']:
                 src_shape = 'diamond'
                 subject_node_type = "Netflow"
-                subject_node_name = temp_edge['srcmsg'][12:-1]
             else:
                 src_shape = DEFAULT_SHAPE
-                subject_node_type = "Subject"
-                subject_node_name = temp_edge['srcmsg'][12:-1]
+                subject_node_type = "Netflow"
             if attack_edge_flag(temp_edge['srcmsg']):
                 src_node_color = 'red'
-                dangerous_subjects.append([begin_time,end_time,subject_node_type,subject_node_name])
+                dangerous_subjects.append([temp_edge['time'],subject_node_type,subject_node_name])
             else:
                 src_node_color = 'blue'
-                anomalous_subjects.append([begin_time,end_time,subject_node_type,subject_node_name])
+                anomalous_subjects.append([temp_edge['time'],subject_node_type,subject_node_name])
             dot.node(name=str(hashgen(replace_path_name(temp_edge['srcmsg']))), label=str(
                 replace_path_name(temp_edge['srcmsg']) + str(
                     partition[str(hashgen(replace_path_name(temp_edge['srcmsg'])))])), color=src_node_color,
                     shape=src_shape)
 
                 # destination node
+            object_node_name = temp_edge['dstmsg'][13:-2]
             if "'subject': '" in temp_edge['dstmsg']:
                 dst_shape = 'box'
                 object_node_type = "Subject"
-                object_node_name = temp_edge['srcmsg'][12:-1]
             elif "'file': '" in temp_edge['dstmsg']:
                 dst_shape = 'oval'
                 object_node_type = "File"
-                object_node_name = temp_edge['srcmsg'][9:-1]
+                object_node_name = temp_edge['dstmsg'][10:-2]
             elif "'netflow': '" in temp_edge['dstmsg']:
                 dst_shape = 'diamond'
                 object_node_type = "Netflow"
-                object_node_name = temp_edge['srcmsg'][12:-1]
             else:
                 dst_shape = DEFAULT_SHAPE
-                object_node_type = "Subject"
-                object_node_name = temp_edge['srcmsg'][12:-1]
+                object_node_type = "Netflow"
             if attack_edge_flag(temp_edge['dstmsg']):
                 dst_node_color = 'red'
-                dangerous_objects.append([begin_time,end_time,object_node_type,object_node_name])
+                dangerous_objects.append([temp_edge['time'],object_node_type,object_node_name])
             else:
                 dst_node_color = 'blue'
-                anomalous_objects.append([begin_time,end_time,object_node_type,object_node_name])
+                anomalous_objects.append([temp_edge['time'],object_node_type,object_node_name])
             dot.node(name=str(hashgen(replace_path_name(temp_edge['dstmsg']))), label=str(
                 replace_path_name(temp_edge['dstmsg']) + str(
                     partition[str(hashgen(replace_path_name(temp_edge['dstmsg'])))])), color=dst_node_color,
@@ -315,8 +317,7 @@ def attack_investigate(cur,connect,begin_time,end_time,):
             if attack_edge_flag(temp_edge['srcmsg']) and attack_edge_flag(temp_edge['dstmsg']):
                 edge_color = 'red'
                 dangerous_actions.append([
-                    begin_time,
-                    end_time,
+                    temp_edge['time'],
                     subject_node_type,
                     subject_node_name,
                     temp_edge['edge_type'],
@@ -326,8 +327,7 @@ def attack_investigate(cur,connect,begin_time,end_time,):
             else:
                 edge_color = 'blue'
                 anomalous_actions.append([
-                    begin_time,
-                    end_time,
+                    temp_edge['time'],
                     subject_node_type,
                     subject_node_name,
                     temp_edge['edge_type'],
@@ -345,6 +345,8 @@ def attack_investigate(cur,connect,begin_time,end_time,):
         save_anomalous_actions(cur,connect,anomalous_actions)
         save_anomalous_subjects(cur,connect,anomalous_subjects)
         save_anomalous_objects(cur,connect,anomalous_objects)
+        begin_time = ns_time_to_datetime(begin_time)
+        end_time = ns_time_to_datetime(end_time)
         dot.render(f"{ARTIFACT_DIR}/graph_visual/{begin_time}~{end_time}_{str(graph_index)}", view=False)
         graph_index += 1
 
@@ -408,7 +410,6 @@ def arg_parse(args: list[str]):
 def init():
     pass
 
-
 def main():
     '''
     Entrance of this Engine
@@ -442,9 +443,7 @@ def main():
         )
         attack_investigate(
             cur=cur,
-            connect=connect,
-            begin_time=begin_time,
-            end_time=end_time
+            connect=connect
         )
 
 if __name__ == "__main__":

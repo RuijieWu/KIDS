@@ -18,7 +18,7 @@ GRAPHS_DIR = ARTIFACT_DIR + "graphs/"
 
 # The directory to save the models
 MODELS_DIR = ARTIFACT_DIR + "models/"
-
+MODELS_PATH = MODELS_DIR + "cadets5_models.pt"
 # The directory to save the results after testing
 TEST_RE = ARTIFACT_DIR + "test_re/"
 
@@ -82,39 +82,69 @@ EDGE_REVERSED = [
 # The following edges are the types only considered to construct the
 # temporal graph for experiments.
 EDGE_TYPE=[
-    "EVENT_WRITE",
-    "EVENT_READ",
-    "EVENT_CLOSE",
-    "EVENT_OPEN",
-    "EVENT_EXECUTE",
-    "EVENT_SENDTO",
-    "EVENT_RECVFROM",
+#    "EVENT_WRITE",
+#    "EVENT_READ",
+#    "EVENT_CLOSE",
+#    "EVENT_OPEN",
+#    "EVENT_EXECUTE",
+#    "EVENT_SENDTO",
+#    "EVENT_RECVFROM",
+ 'EVENT_CONNECT',
+ 'EVENT_EXECUTE',
+ 'EVENT_OPEN',
+ 'EVENT_READ',
+ 'EVENT_RECVFROM',
+ 'EVENT_RECVMSG',
+ 'EVENT_SENDMSG',
+ 'EVENT_SENDTO',
+ 'EVENT_WRITE'
+
 ]
 
 # The map between edge type and edge ID
+#REL2ID = {
+#    
+#    1: 'EVENT_WRITE',
+#    'EVENT_WRITE': 1,
+#
+#    2: 'EVENT_READ',
+#    'EVENT_READ': 2,
+#
+#    3: 'EVENT_CLOSE',
+#    'EVENT_CLOSE': 3,
+#
+#    4: 'EVENT_OPEN',
+#    'EVENT_OPEN': 4,
+#
+#    5: 'EVENT_EXECUTE',
+#    'EVENT_EXECUTE': 5,
+
+#    6: 'EVENT_SENDTO',
+#    'EVENT_SENDTO': 6,
+
+#    7: 'EVENT_RECVFROM',
+#    'EVENT_RECVFROM': 7
+#}
 REL2ID = {
-    1: 'EVENT_WRITE',
-    'EVENT_WRITE': 1,
-
-    2: 'EVENT_READ',
-    'EVENT_READ': 2,
-
-    3: 'EVENT_CLOSE',
-    'EVENT_CLOSE': 3,
-
-    4: 'EVENT_OPEN',
-    'EVENT_OPEN': 4,
-
-    5: 'EVENT_EXECUTE',
-    'EVENT_EXECUTE': 5,
-
-    6: 'EVENT_SENDTO',
-    'EVENT_SENDTO': 6,
-
-    7: 'EVENT_RECVFROM',
-    'EVENT_RECVFROM': 7
-}
-
+ 1: 'EVENT_CONNECT',
+ 'EVENT_CONNECT': 1,
+ 2: 'EVENT_EXECUTE',
+ 'EVENT_EXECUTE': 2,
+ 3: 'EVENT_OPEN',
+ 'EVENT_OPEN': 3,
+ 4: 'EVENT_READ',
+ 'EVENT_READ': 4,
+ 5: 'EVENT_RECVFROM',
+ 'EVENT_RECVFROM': 5,
+ 6: 'EVENT_RECVMSG',
+ 'EVENT_RECVMSG': 6,
+ 7: 'EVENT_SENDMSG',
+ 'EVENT_SENDMSG': 7,
+ 8: 'EVENT_SENDTO',
+ 'EVENT_SENDTO': 8,
+ 9: 'EVENT_WRITE',
+ 'EVENT_WRITE': 9
+ }
 ########################################################
 #
 #                   Model dimensionality
@@ -252,6 +282,8 @@ ATTACK_LIST = {
     "high":[]
 }
 
-DEFAULT_SHAPE = "box"
+DEFAULT_SHAPE = "diamond"
+BEGIN_TIME = 3392812800000000000
+END_TIME = 0
 
 HELP_MSG = ""

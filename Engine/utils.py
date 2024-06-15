@@ -202,7 +202,7 @@ def replace_path_name(path_name):
     return path_name
 
 def save_dangerous_actions(cur,connect,dangerous_action_list):
-    sql = '''insert into  anomalous_actions_table
+    sql = '''insert into  dangerous_actions_table
                          values %s
             '''
     ex.execute_values(cur, sql, dangerous_action_list, page_size=10000)
@@ -222,9 +222,8 @@ def save_dangerous_objects(cur,connect,dangerous_objects):
     ex.execute_values(cur, sql, dangerous_objects, page_size=10000)
     connect.commit()
 
-
 def save_anomalous_actions(cur,connect,anomalous_actions):
-    sql = '''insert into  dangerous_actions_table
+    sql = '''insert into  anomalous_actions_table
                          values %s
             '''
     ex.execute_values(cur, sql, anomalous_actions, page_size=10000)
