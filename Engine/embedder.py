@@ -1,6 +1,6 @@
 '''
 Date: 2024-06-12 21:29:27
-LastEditTime: 2024-06-15 15:17:04
+LastEditTime: 2024-06-15 23:01:57
 Description: Embed Events from database into GNN
 '''
 from sklearn.feature_extraction import FeatureHasher
@@ -50,12 +50,12 @@ def gen_feature(nodeid2msg,recording = False):
     return node2higvec
 
 def gen_relation_onehot(recording = False):
-    relvec = torch.nn.functional.one_hot(torch.arange(0, len(REL2ID.keys())//2), num_classes=len(REL2ID.keys())//2)
+    relvec = torch.nn.functional.one_hot(torch.arange(0, len(REL2ID[DETECTION_LEVEL].keys())//2), num_classes=len(REL2ID[DETECTION_LEVEL].keys())//2)
     rel2vec = {}
-    for i in REL2ID.keys():
+    for i in REL2ID[DETECTION_LEVEL].keys():
         if type(i) is not int:
-            rel2vec[i]= relvec[REL2ID[i]-1]
-            rel2vec[relvec[REL2ID[i]-1]]=i
+            rel2vec[i]= relvec[REL2ID[DETECTION_LEVEL][i]-1]
+            rel2vec[relvec[REL2ID[DETECTION_LEVEL][i]-1]]=i
     if recording:
         torch.save(rel2vec, ARTIFACT_DIR + "rel2vec")
     return rel2vec
@@ -75,7 +75,7 @@ def gen_vectorized_graphs(
     edge_list = []
     for e in events:
         edge_temp = [int(e[1]), int(e[4]), e[2], e[5]]
-        if e[2] in EDGE_TYPE:
+        if e[2] in EDGE_TYPE[DETECTION_LEVEL]:
             edge_list.append(edge_temp)
     dataset = TemporalData()
     src = []

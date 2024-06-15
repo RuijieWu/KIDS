@@ -134,7 +134,7 @@ def test(
             dstmsg = str(nodeid2msg[dstnode])
             t_var = int(t[i])
             edgeindex = tensor_find(msg[i][NODE_EMBEDDING_DIM:-NODE_EMBEDDING_DIM], 1)
-            edge_type = REL2ID[edgeindex]
+            edge_type = REL2ID[DETECTION_LEVEL][edgeindex]
             loss = each_edge_loss[i]
 
             temp_dic = {}
@@ -408,7 +408,29 @@ def arg_parse(args: list[str]):
         return False, "error", "[*] Wrong Arguments!"
 
 def init():
-    pass
+    cur , connect = init_database_connection()
+    cur.execute(DROP_TABLES)
+    connect.commit()
+    cur.execute(CREATE_PLUGIN)
+    connect.commit()
+    cur.execute(CREATE_EVENT_TABLE)
+    connect.commit()
+    cur.execute(CREATE_FILE_NODE_TABLE)
+    connect.commit()
+    cur.execute(CREATE_NETFLOW_NODE_TABLE)
+    connect.commit()
+    cur.execute(CREATE_SUBJECT_NODE_TABLE)
+    connect.commit()
+    cur.execute(CREATE_NODE2ID)
+    connect.commit()
+    cur.execute(CREATE_ABERRATION_STATICS_TABLE)
+    connect.commit()
+    cur.execute(CREATE_SUBJECTS_TABLE)
+    connect.commit()
+    cur.execute(CREATE_ACTIONS_TABLE)
+    connect.commit()
+    cur.execute(CREATE_OBJECTS_TABLE)
+    connect.commit()
 
 def main():
     '''
