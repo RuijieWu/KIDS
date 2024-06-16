@@ -33,7 +33,7 @@ def extract_timestamp_nsec(line):
     if 'msg=audit(' in line:
         timestamp_str = line.split('msg=audit(')[1].split(')')[0]
         seconds_str, nano_str = timestamp_str.split(':')
-        timestamp_dt = datetime.utcfromtimestamp(float(seconds_str))
+        # timestamp_dt = datetime.utcfromtimestamp(float(seconds_str))
         timestamp_nsec = int(float(seconds_str) * 1_000_000_000) + int(nano_str)
         return timestamp_nsec
     return None
@@ -67,7 +67,7 @@ def parse_folder_watch_logs(logs):
             elif line.startswith('type=PATH'):
                 if 'name=' in line:
                     event['file'] = line.split('name=')[1].split()[0].strip('"')
-        if event:
+        if all(key in event for key in ['timestamp_rec', 'process', 'event', 'file']):
             events.append(event)
     return events
 
@@ -101,7 +101,7 @@ def parse_socket_operations_logs(logs):
                         src_port = int(saddr[8:12], 16)
                         dest_ip = '.'.join(str(int(saddr[i:i+2], 16)) for i in range(12, 20, 2))
                         dest_port = int(saddr[20:24], 16)
-        if event and 'process' in event and 'event' in event and src_ip and src_port and dest_ip and dest_port:
+        if all(key in event for key in ['timestamp_rec', 'process', 'event']) and src_ip and src_port and dest_ip and dest_port:
             event['source_ip'] = src_ip
             event['source_port'] = src_port
             event['destination_ip'] = dest_ip
@@ -187,4 +187,4 @@ def get_audit_logs(start_time: str, end_time: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8010)

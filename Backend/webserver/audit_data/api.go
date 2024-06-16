@@ -3,7 +3,9 @@ package audit_data
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 
@@ -39,7 +41,7 @@ func SetupAudit(c *gin.Context) {
 		return
 	}
 
-	resp, err := http.Post("http://localhost:8000/setup-audit", "application/json", bytes.NewBuffer(jsonData))
+	resp, err := http.Post("http://localhost:8010/setup-audit", "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to the Python service"})
 		return
@@ -80,7 +82,7 @@ func GetAuditLogs(c *gin.Context) {
 		return
 	}
 
-	pythonURL := "http://localhost:8000/audit-logs"
+	pythonURL := "http://localhost:8010/audit-logs"
 	resp, err := http.Get(pythonURL + "?start_time=" + startTime.Format("2006-01-02T15:04:05") + "&end_time=" + endTime.Format("2006-01-02T15:04:05"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to the Python service"})
@@ -88,7 +90,7 @@ func GetAuditLogs(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read response from the Python service"})
 		return
@@ -103,11 +105,12 @@ func GetAuditLogs(c *gin.Context) {
 	// parse to type Events struct
 	events := Events{}
 	if err := json.Unmarshal(body, &events); err != nil {
+		log.Println("Error: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse response from the Python service"})
 		return
 	}
-
-	InsertEvents(events)
+	
+	insertEvents(events)
 
 	c.JSON(resp.StatusCode, result)
 }
