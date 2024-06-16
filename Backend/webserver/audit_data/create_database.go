@@ -1,4 +1,4 @@
-package db
+package audit_data
 
 import (
     "bufio"
@@ -16,7 +16,7 @@ import (
 
 var DB *gorm.DB
 
-func initDatabaseConnection() {
+func InitDatabaseConnection() {
     dsn := "host=/var/run/postgresql/ user=postgres password=postgres dbname=tc_cadet_dataset_db port=5432 sslmode=disable TimeZone=Asia/Shanghai"
     var err error
     DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
@@ -298,7 +298,6 @@ func storeEvent( db *gorm.DB, events Events, processed map[string]bool, nodeID2M
 }
 
 func InsertEvents(events Events) {
-    initDatabaseConnection()
     storeNetFlow(events.socketOps, DB)
     storeSubject(events.folderWatch, DB)
     storeFile(events.folderWatch, DB)

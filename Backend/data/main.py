@@ -1,15 +1,15 @@
 import os
 import subprocess
 import json
-from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException, Query
+from datetime import datetime
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import List
 
 app = FastAPI()
 
-class DirectoryPath(BaseModel):
-    path: str
+class DirectoryPaths(BaseModel):
+    paths: List[str]
 
 # Function to format time for ausearch
 def format_time(time):
@@ -140,8 +140,8 @@ def clear_audit_logs():
         raise HTTPException(status_code=500, detail=f"Failed to clear audit logs: {e}")
 
 @app.post("/setup-audit")
-def setup_audit(directory: DirectoryPath):
-    folder_to_watch = directory.path  # Get the folder path from the request body
+def setup_audit(directories: DirectoryPaths):
+    folder_paths = directories.paths  # Get the folder paths from the request body
     
     # Check if the script is run as root
     if os.geteuid() != 0:
@@ -153,8 +153,9 @@ def setup_audit(directory: DirectoryPath):
     # Restart auditd service
     restart_auditd_service()
 
-    # Add audit rules
-    add_file_watch_rule(folder_to_watch)
+    # Add audit rules for each directory
+    for folder in folder_paths:
+        add_file_watch_rule(folder)
     add_socket_audit_rule()
 
     return {"message": "Audit logs cleared, audit rules added, and auditd service restarted successfully."}
