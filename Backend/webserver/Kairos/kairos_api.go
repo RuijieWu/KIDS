@@ -67,7 +67,7 @@ func GetSubjects(c *gin.Context) {
 	// 获取查询参数
 	startTimeStr := c.Query("start_time")
 	endTimeStr := c.Query("end_time")
-	limitStr := c.Query("limit")
+	limitStr := c.DefaultQuery("limit", "5") // 默认 limit 为 5
 
 	// 将时间字符串转换为 Unix 时间戳
 	startTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr)
@@ -98,27 +98,25 @@ func GetSubjects(c *gin.Context) {
 	var dangerousSubjects []DangerousSubject
 
 	// 查询所有在时间段内的 AnomalousSubject
-	if err := DB.Raw(`
-		SELECT time, subject_type, subject_name, COUNT(*) as count
-		FROM anomalous_subjects_table
-		WHERE time >= ? AND time <= ?
-		GROUP BY subject_type, subject_name
-		ORDER BY count DESC
-		LIMIT ?
-	`, startTimeUnix, endTimeUnix, limit).Scan(&anomalousSubjects).Error; err != nil {
+	if err := DB.Model(&AnomalousSubject{}).
+		Select("time, subject_type, subject_name, COUNT(*) as count").
+		Where("time >= ? AND time <= ?", startTimeUnix, endTimeUnix).
+		Group("time, subject_type, subject_name").
+		Order("count DESC").
+		Limit(limit).
+		Find(&anomalousSubjects).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anomalous subjects"})
 		return
 	}
 
 	// 查询所有在时间段内的 DangerousSubject
-	if err := DB.Raw(`
-		SELECT time, subject_type, subject_name, COUNT(*) as count
-		FROM dangerous_subjects_table
-		WHERE time >= ? AND time <= ?
-		GROUP BY subject_type, subject_name
-		ORDER BY count DESC
-		LIMIT ?
-	`, startTimeUnix, endTimeUnix, limit).Scan(&dangerousSubjects).Error; err != nil {
+	if err := DB.Model(&DangerousSubject{}).
+		Select("time, subject_type, subject_name, COUNT(*) as count").
+		Where("time >= ? AND time <= ?", startTimeUnix, endTimeUnix).
+		Group("time, subject_type, subject_name").
+		Order("count DESC").
+		Limit(limit).
+		Find(&dangerousSubjects).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query dangerous subjects"})
 		return
 	}
@@ -140,7 +138,7 @@ func GetObjects(c *gin.Context) {
 	// 获取查询参数
 	startTimeStr := c.Query("start_time")
 	endTimeStr := c.Query("end_time")
-	limitStr := c.Query("limit")
+	limitStr := c.DefaultQuery("limit", "5") // 默认 limit 为 5
 
 	// 将时间字符串转换为 Unix 时间戳
 	startTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr)
@@ -171,27 +169,25 @@ func GetObjects(c *gin.Context) {
 	var dangerousObjects []DangerousObject
 
 	// 查询所有在时间段内的 AnomalousObject
-	if err := DB.Raw(`
-		SELECT time, object_type, object_name, COUNT(*) as count
-		FROM anomalous_objects_table
-		WHERE time >= ? AND time <= ?
-		GROUP BY object_type, object_name
-		ORDER BY count DESC
-		LIMIT ?
-	`, startTimeUnix, endTimeUnix, limit).Scan(&anomalousObjects).Error; err != nil {
+	if err := DB.Model(&AnomalousObject{}).
+		Select("time, object_type, object_name, COUNT(*) as count").
+		Where("time >= ? AND time <= ?", startTimeUnix, endTimeUnix).
+		Group("time, object_type, object_name").
+		Order("count DESC").
+		Limit(limit).
+		Find(&anomalousObjects).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anomalous objects"})
 		return
 	}
 
 	// 查询所有在时间段内的 DangerousObject
-	if err := DB.Raw(`
-		SELECT time, object_type, object_name, COUNT(*) as count
-		FROM dangerous_objects_table
-		WHERE time >= ? AND time <= ?
-		GROUP BY object_type, object_name
-		ORDER BY count DESC
-		LIMIT ?
-	`, startTimeUnix, endTimeUnix, limit).Scan(&dangerousObjects).Error; err != nil {
+	if err := DB.Model(&DangerousObject{}).
+		Select("time, object_type, object_name, COUNT(*) as count").
+		Where("time >= ? AND time <= ?", startTimeUnix, endTimeUnix).
+		Group("time, object_type, object_name").
+		Order("count DESC").
+		Limit(limit).
+		Find(&dangerousObjects).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query dangerous objects"})
 		return
 	}
@@ -226,53 +222,23 @@ func GetAberrationStatics(c *gin.Context) {
 		return
 	}
 
-	// 查询数据库，获取所有异常统计数据
-	var results []AberrationStaticsTable
-	if err := DB.Find(&results).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query AberrationStaticsTable"})
+	//转化成unix时间戳
+	startTimeUnix := startTime.Unix()
+	endTimeUnix := endTime.Unix()
+
+	var aberrationStatics []AberrationStaticsTable
+
+	if err := DB.Model(&AberrationStaticsTable{}).
+		Where("begin_time >= ? AND end_time <= ?", startTimeUnix, endTimeUnix).
+		Find(&aberrationStatics).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query aberration statics"})
 		return
 	}
 
-	// 筛选在时间范围内的数据
-	var filteredResults []AberrationStaticsTable
-	for _, result := range results {
-		// 解析 time_interval 字段
-		timeIntervals := parseTimeInterval(result.TimeInterval)
-		if timeIntervals == nil {
-			continue
-		}
-
-		// 检查时间范围
-		if timeIntervals[0].After(startTime) && timeIntervals[1].Before(endTime) {
-			filteredResults = append(filteredResults, result)
-		}
-	}
-
-	// 返回结果
 	c.JSON(http.StatusOK, gin.H{
-		"total": len(filteredResults),
-		"data":  filteredResults,
+		"total": len(aberrationStatics),
+		"data":  aberrationStatics,
 	})
-}
-
-// 解析时间区间字符串为时间数组
-func parseTimeInterval(intervalStr string) []time.Time {
-	parts := strings.Split(intervalStr, "~")
-	if len(parts) != 2 {
-		return nil
-	}
-
-	startTime, err := time.Parse("2006-01-02 15:04:05.999999999", parts[0])
-	if err != nil {
-		return nil
-	}
-
-	endTime, err := time.Parse("2006-01-02 15:04:05.999999999", parts[1])
-	if err != nil {
-		return nil
-	}
-
-	return []time.Time{startTime, endTime}
 }
 
 func GetGraphVisual(c *gin.Context) {

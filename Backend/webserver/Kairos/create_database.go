@@ -11,12 +11,17 @@ var DB *gorm.DB
 
 // 定义表结构
 type AberrationStaticsTable struct {
-	TimeInterval string  `gorm:"column:time_interval"`
-	LossAvg      float64 `gorm:"column:loss_avg"`
-	Count        int64   `gorm:"column:count"`
-	Percentage   float64 `gorm:"column:percentage"`
-	NodeNum      int64   `gorm:"column:node_num"`
-	EdgeNum      int64   `gorm:"column:edge_num"`
+	BeginTime  int64   `gorm:"column:begin_time"`
+	EndTime    int64   `gorm:"column:end_time"`
+	LossAvg    float64 `gorm:"column:loss_avg"`
+	Count      int64   `gorm:"column:count"`
+	Percentage float64 `gorm:"column:percentage"`
+	NodeNum    int64   `gorm:"column:node_num"`
+	EdgeNum    int64   `gorm:"column:edge_num"`
+}
+
+func (AberrationStaticsTable) TableName() string {
+	return "aberration_statics_table"
 }
 
 // 初始化数据库连接并创建表
@@ -53,10 +58,18 @@ type DangerousSubject struct {
 	SubjectName string `gorm:"column:subject_name"`
 }
 
+func (DangerousSubject) TableName() string {
+	return "dangerous_subjects_table"
+}
+
 type AnomalousSubject struct {
 	Time        int64  `gorm:"column:time"`
 	SubjectType string `gorm:"column:subject_type"`
 	SubjectName string `gorm:"column:subject_name"`
+}
+
+func (AnomalousSubject) TableName() string {
+	return "anomalous_subjects_table"
 }
 
 type DangerousAction struct {
@@ -68,6 +81,10 @@ type DangerousAction struct {
 	ObjectName  string `gorm:"column:object_name"`
 }
 
+func (DangerousAction) TableName() string {
+	return "dangerous_actions_table"
+}
+
 type AnomalousAction struct {
 	Time        int64  `gorm:"column:time"`
 	SubjectType string `gorm:"column:subject_type"`
@@ -77,14 +94,26 @@ type AnomalousAction struct {
 	ObjectName  string `gorm:"column:object_name"`
 }
 
+func (AnomalousAction) TableName() string {
+	return "anomalous_actions_table"
+}
+
 type DangerousObject struct {
 	Time       int64  `gorm:"column:time"`
 	ObjectType string `gorm:"column:object_type"`
 	ObjectName string `gorm:"column:object_name"`
 }
 
+func (DangerousObject) TableName() string {
+	return "dangerous_objects_table"
+}
+
 type AnomalousObject struct {
 	Time       int64  `gorm:"column:time"`
 	ObjectType string `gorm:"column:object_type"`
 	ObjectName string `gorm:"column:object_name"`
+}
+
+func (AnomalousObject) TableName() string {
+	return "anomalous_objects_table"
 }
