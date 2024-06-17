@@ -24,6 +24,7 @@ func ForwardAlarmListRequest(c *gin.Context) {
 	// 获取查询参数
 	sizeStr := c.Query("pageSize")
 	pageStr := c.Query("page")
+	securitysStr := c.Query("securitys")
 	alarmTypesStr := c.Query("alarmTypes")
 	attackEndTime := c.Query("attackEndTime")
 	attackStartTime := c.Query("attackStartTime")
@@ -54,6 +55,17 @@ func ForwardAlarmListRequest(c *gin.Context) {
 		alarmTypes = append(alarmTypes, int32(alarmType))
 	}
 
+	securitys := []int32{}
+	for _, v := range strings.Split(securitysStr, ",") {
+		security, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			log.Printf("Invalid securitys: %e", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid securitys"})
+			return
+		}
+		securitys = append(securitys, int32(security))
+	}
+
 	// Prepare request with parameters
 	request := &model.AlarmListRequest{
 		AlarmListQuery: &model.AlarmListQuery{
@@ -62,6 +74,7 @@ func ForwardAlarmListRequest(c *gin.Context) {
 			AlarmTypes:      alarmTypes,
 			AttackEndTime:   &attackEndTime,
 			AttackStartTime: &attackStartTime,
+			Securitys:       securitys,
 		},
 	}
 
