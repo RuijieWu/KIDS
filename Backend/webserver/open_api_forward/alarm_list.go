@@ -25,6 +25,8 @@ func ForwardAlarmListRequest(c *gin.Context) {
 	sizeStr := c.Query("pageSize")
 	pageStr := c.Query("page")
 	alarmTypesStr := c.Query("alarmTypes")
+	attackEndTime := c.Query("attackEndTime")
+	attackStartTime := c.Query("attackStartTime")
 
 	size, err := strconv.ParseInt(sizeStr, 10, 32)
 	if err != nil {
@@ -55,9 +57,11 @@ func ForwardAlarmListRequest(c *gin.Context) {
 	// Prepare request with parameters
 	request := &model.AlarmListRequest{
 		AlarmListQuery: &model.AlarmListQuery{
-			PageSize:   &size32,
-			Page:       &page32,
-			AlarmTypes: alarmTypes,
+			PageSize:        &size32,
+			Page:            &page32,
+			AlarmTypes:      alarmTypes,
+			AttackEndTime:   &attackEndTime,
+			AttackStartTime: &attackStartTime,
 		},
 	}
 
