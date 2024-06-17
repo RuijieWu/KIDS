@@ -24,5 +24,8 @@ func main() {
 	router.GET("/kairos/actions", Kairos.GetActions)
 	router.GET("/kairos/subjects", Kairos.GetSubjects)
 	router.GET("/kairos/objects", Kairos.GetObjects)
+	router.GET("/kairos/aberration-statics", Kairos.GetAberrationStatics)
+	router.GET("/kairos/graph-visual", Kairos.GetGraphVisual)
+
 	router.Run(":8080")
 }
