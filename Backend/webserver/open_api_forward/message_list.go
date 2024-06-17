@@ -1,13 +1,15 @@
 package open_api_forward
 
 import (
+	"log"
 	"net/http"
+	"strconv"
 	"sync"
 
 	"github.com/gin-gonic/gin"
-	"github.com/Alex4210987/ecloudsdkcore"
-	"github.com/Alex4210987/ecloudsdkecs"
-	"github.com/Alex4210987/ecloudsdkecs/model"
+	"gitlab.ecloud.com/ecloud/ecloudsdkcore/config"
+	"gitlab.ecloud.com/ecloud/ecloudsdkcscenter"
+	"gitlab.ecloud.com/ecloud/ecloudsdkcscenter/model"
 )
 
 var (
@@ -55,16 +57,25 @@ func handleMessageList(c *gin.Context, size, page int32) {
 }
 
 func ForwardMessageListRequest(c *gin.Context) {
-	var requestParams struct {
-		Size int32 `json:"size"`
-		Page int32 `json:"page"`
-	}
+    // 获取查询参数
+    sizeStr := c.Query("size")
+    pageStr := c.Query("page")
 
-	if err := c.ShouldBindJSON(&requestParams); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+    // 将查询参数转换为 int32
+    size, err := strconv.Atoi(sizeStr)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid size parameter"})
+        return
+    }
+    page, err := strconv.Atoi(pageStr)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid page parameter"})
+        return
+    }
 
-	// Call the separate function to handle the request
-	handleMessageList(c, requestParams.Size, requestParams.Page)
+    log.Printf("Received message list request with size: %d, page: %d\n", size, page)
+
+    // 调用处理函数
+    handleMessageList(c, int32(size), int32(page))
 }
+
