@@ -20,36 +20,35 @@ func InitDatabaseConnection() {
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Println(fmt.Sprintf("Failed to connect to database: %v", err))
+		log.Printf("Failed to connect to database: %v", err)
 		log.Fatal("failed to connect database")
 	}
 
 	// AutoMigrate will create the tables, adding missing columns and indexes
 	if err := DB.AutoMigrate(&NetFlowNode{}, &SubjectNode{}, &FileNode{}, &NodeID{}, &Event{}); err != nil {
-		log.Println(fmt.Sprintf("Failed to migrate database: %v", err))
+		log.Printf("Failed to migrate database: %v", err)
+        // Perform manual migration
+        manualMigration()
 		log.Fatal("failed to migrate database")
 	}
-
-	// Perform manual migration
-	manualMigration()
 }
 
 func manualMigration() {
 	// Create the table if it doesn't exist
 	if err := DB.Exec("CREATE TABLE IF NOT EXISTS node2id (id SERIAL PRIMARY KEY, hash_id TEXT NOT NULL, node_type TEXT NOT NULL, msg TEXT NOT NULL, index_id BIGINT NOT NULL)").Error; err != nil {
-		log.Println(fmt.Sprintf("Failed to create table node2id: %v", err))
+		log.Printf("Failed to create table node2id: %v", err)
 		log.Fatal("failed to create table node2id")
 	}
-
+	
 	// Create the table if it doesn't exist
 	if err := DB.Exec("CREATE TABLE IF NOT EXISTS event_table (id SERIAL PRIMARY KEY, src_node TEXT NOT NULL, src_index_id TEXT NOT NULL, operation TEXT NOT NULL, dst_node TEXT NOT NULL, dst_index_id TEXT NOT NULL, timestamp_rec BIGINT NOT NULL)").Error; err != nil {
-		log.Println(fmt.Sprintf("Failed to create table event_table: %v", err))
+		log.Printf("Failed to create table event_table: %v", err)
 		log.Fatal("failed to create table event_table")
 	}
 
 	// Create the table if it doesn't exist
 	if err := DB.Exec("CREATE TABLE IF NOT EXISTS netflow_node_table (id SERIAL PRIMARY KEY, node_uuid TEXT NOT NULL, hash_id TEXT NOT NULL, src_addr TEXT NOT NULL, src_port TEXT NOT NULL, dst_addr TEXT NOT NULL, dst_port TEXT NOT NULL)").Error; err != nil {
-		log.Println(fmt.Sprintf("Failed to create table netflow_node_table: %v", err))
+		log.Printf("Failed to create table netflow_node_table: %v", err)
 		log.Fatal("failed to create table netflow_node_table")
 	}
 
@@ -323,7 +322,7 @@ func storeEvent(db *gorm.DB, events Events, processed map[string]bool, nodeHash2
 		dstNode := subjectUUID2Hash[socketOp.Process]
 		operation := socketOp.Event
 		timestampRec := socketOp.TimestampRec
-        srcIndexID := nodeHash2Index[srcNode]
+		srcIndexID := nodeHash2Index[srcNode]
 		dstIndexID := nodeHash2Index[dstNode]
 
 		if _, ok := processed[srcNode+dstNode+operation]; !ok {
@@ -348,6 +347,5 @@ func insertEvents(events Events) {
 	nodeHash2Index, subjectUUID2Hash, fileUUID2Hash, netUUID2Hash := createNodeList(DB)
 
 	processed := make(map[string]bool)
-	log.Println("nodeHash2Index: ", nodeHash2Index)
 	storeEvent(DB, events, processed, nodeHash2Index, subjectUUID2Hash, fileUUID2Hash, netUUID2Hash)
 }
