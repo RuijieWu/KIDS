@@ -5,9 +5,9 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
-	"ecloud.gitlab.com/ecloud/ecloudsdkcore/config"
-	"ecloud.gitlab.com/ecloud/ecloudsdkecs"
-	"ecloud.gitlab.com/ecloud/ecloudsdkecs/model"
+	"github.com/Alex4210987/ecloudsdkcore"
+	"github.com/Alex4210987/ecloudsdkecs"
+	"github.com/Alex4210987/ecloudsdkecs/model"
 )
 
 var (

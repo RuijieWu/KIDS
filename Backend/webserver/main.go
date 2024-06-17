@@ -13,7 +13,7 @@ func main() {
 	router.POST("/data/setup-audit", audit_data.SetupAudit)
 	router.GET("/data/audit-logs", audit_data.GetAuditLogs)
 
-	router.GET("/alarm/message/list", open_api_forward.ForwardMessageListRequest)
+	//router.GET("/alarm/message/list", open_api_forward.ForwardMessageListRequest)
 
 	router.Run(":8080")
 }
