@@ -8,7 +8,7 @@ Config for whole GNN Engine
 ########################################################
 
 # The directory of the raw logs
-RAW_DIR = "/home/postgres/kairos/CADETS-E3"
+RAW_DIR = "/home/postgres/kairos/CADETS-E3-JSON/"
 
 # The directory to save all artifacts
 ARTIFACT_DIR = "./artifact/"
@@ -20,10 +20,10 @@ GRAPHS_DIR = ARTIFACT_DIR + "graphs/"
 MODELS_DIR = ARTIFACT_DIR + "models/"
 
 # The directory to save the results after testing
-test_re = ARTIFACT_DIR + "test_re/"
+TEST_RE = ARTIFACT_DIR + "test_re/"
 
 # The directory to save all visualized results
-vis_re = ARTIFACT_DIR + "vis_re/"
+VIS_RE = ARTIFACT_DIR + "vis_re/"
 
 
 
@@ -46,22 +46,22 @@ HOST = '/var/run/postgresql/'
 USER = 'postgres'
 
 # The password to the database user
-PASSWORD = 'JeRyWu'
+PASSWORD = ''
 
 # The port number for Postgres
 PORT = '5432'
 
 FILE_LIST = [
-    'ta1-cadets-e3-official.json',
-    'ta1-cadets-e3-official.json.1',
-    'ta1-cadets-e3-official.json.2',
+#    'ta1-cadets-e3-official.json',
+#    'ta1-cadets-e3-official.json.1',
+#    'ta1-cadets-e3-official.json.2',
     'ta1-cadets-e3-official-1.json',
     'ta1-cadets-e3-official-1.json.1',
     'ta1-cadets-e3-official-1.json.2',
     'ta1-cadets-e3-official-1.json.3',
     'ta1-cadets-e3-official-1.json.4',
-    'ta1-cadets-e3-official-2.json',
-    'ta1-cadets-e3-official-2.json.1'
+#    'ta1-cadets-e3-official-2.json',
+#    'ta1-cadets-e3-official-2.json.1'
 ]
 
 
@@ -93,20 +93,26 @@ EDGE_TYPE=[
 
 # The map between edge type and edge ID
 REL2ID = {
- 1: 'EVENT_WRITE',
- 'EVENT_WRITE': 1,
- 2: 'EVENT_READ',
- 'EVENT_READ': 2,
- 3: 'EVENT_CLOSE',
- 'EVENT_CLOSE': 3,
- 4: 'EVENT_OPEN',
- 'EVENT_OPEN': 4,
- 5: 'EVENT_EXECUTE',
- 'EVENT_EXECUTE': 5,
- 6: 'EVENT_SENDTO',
- 'EVENT_SENDTO': 6,
- 7: 'EVENT_RECVFROM',
- 'EVENT_RECVFROM': 7
+    1: 'EVENT_WRITE',
+    'EVENT_WRITE': 1,
+
+    2: 'EVENT_READ',
+    'EVENT_READ': 2,
+
+    3: 'EVENT_CLOSE',
+    'EVENT_CLOSE': 3,
+
+    4: 'EVENT_OPEN',
+    'EVENT_OPEN': 4,
+
+    5: 'EVENT_EXECUTE',
+    'EVENT_EXECUTE': 5,
+
+    6: 'EVENT_SENDTO',
+    'EVENT_SENDTO': 6,
+
+    7: 'EVENT_RECVFROM',
+    'EVENT_RECVFROM': 7
 }
 
 ########################################################
@@ -202,27 +208,17 @@ ATTACK_NODES = {
         'vUgefal',
         '/var/log/devc',
         '/etc/passwd',
+        '81.49.200.166',
+        '61.167.39.128',
+        '78.205.235.65',
+        '139.123.0.113',
         "'nginx'",
     ],
     "medium":[
-        '/tmp/vUgefal',
-        'vUgefal',
-        '/var/log/devc',
-        '/etc/passwd',
-        "'nginx'",
-        "'apache'",
-        "'/etc/proc'",
-        "'/etc/sudo'"
+        
     ],
     "high":[
-        '/tmp/vUgefal',
-        'vUgefal',
-        '/var/log/devc',
-        '/etc/passwd',
-        "'nginx'",
-        "'apache'",
-        "'/etc/proc'",
-        "'/etc/sudo'"
+        
     ]
 }
 
@@ -242,8 +238,8 @@ REPLACE_DICT = {
 }
 
 ATTACK_LIST = [
-    ARTIFACT_DIR+'/graph_4_6/2018-04-06 11:18:26.126177915~2018-04-06 11:33:35.116170745.txt',
-    ARTIFACT_DIR+'/graph_4_6/2018-04-06 11:33:35.116170745~2018-04-06 11:48:42.606135188.txt',
-    ARTIFACT_DIR+'/graph_4_6/2018-04-06 11:48:42.606135188~2018-04-06 12:03:50.186115455.txt',
-    ARTIFACT_DIR+'/graph_4_6/2018-04-06 12:03:50.186115455~2018-04-06 14:01:32.489584227.txt',
+#*    ARTIFACT_DIR+'graph_4_6/2018-04-06 11:18:26.126177915~2018-04-06 11:33:35.116170745.txt',
+#*    ARTIFACT_DIR+'graph_4_6/2018-04-06 11:33:35.116170745~2018-04-06 11:48:42.606135188.txt',
+#*    ARTIFACT_DIR+'graph_4_6/2018-04-06 11:48:42.606135188~2018-04-06 12:03:50.186115455.txt',
+#*    ARTIFACT_DIR+'graph_4_6/2018-04-06 12:03:50.186115455~2018-04-06 14:01:32.489584227.txt',
 ]

@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 import torch
@@ -6,17 +5,12 @@ import numpy as np
 from sklearn.feature_extraction import FeatureHasher
 from torch_geometric.data import *
 from tqdm import tqdm
-<<<<<<< Updated upstream
 from graphviz import Digraph
 import networkx as nx
 import community.community_louvain as community_louvain
 
 from .engine_config import *
 from .engine_utils import *
-=======
-from config import *
-from kairos_utils import *
->>>>>>> Stashed changes
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 criterion = nn.CrossEntropyLoss()
@@ -41,6 +35,42 @@ def cal_pos_edges_loss_multiclass(link_pred_ratio,labels):
         loss.append(criterion(link_pred_ratio[i].reshape(1,-1),labels[i].reshape(-1)))
     return torch.tensor(loss)
 
+def gen_feature(cur):
+    # Firstly obtain all node labels
+    nodeid2msg = gen_nodeid2msg(cur=cur)
+
+    # Construct the hierarchical representation for each node label
+    node_msg_dic_list = []
+    for i in tqdm(nodeid2msg.keys()):
+        if type(i) == int:
+            higlist = None
+            #* nodeid2msg[i].keys() 即 node_type
+            if 'netflow' in nodeid2msg[i].keys():
+                higlist = ['netflow']
+                higlist += ip2higlist(nodeid2msg[i]['netflow'])
+
+            if 'file' in nodeid2msg[i].keys():
+                higlist = ['file']
+                higlist += path2higlist(nodeid2msg[i]['file'])
+
+            if 'subject' in nodeid2msg[i].keys():
+                higlist = ['subject']
+                higlist += path2higlist(nodeid2msg[i]['subject'])
+            if higlist is not None:
+                node_msg_dic_list.append(list2str(higlist))
+
+    # Featurize the hierarchical node labels
+    FH_string = FeatureHasher(n_features=NODE_EMBEDDING_DIM, input_type="string")
+    node2higvec=[]
+    for i in tqdm(node_msg_dic_list):
+        vec=FH_string.transform([i]).toarray()
+        node2higvec.append(vec)
+    node2higvec = np.array(node2higvec).reshape([-1, NODE_EMBEDDING_DIM])
+    #! File Saved
+    torch.save(node2higvec, ARTIFACT_DIR + "node2higvec")
+    return node2higvec
+
+
 def gen_vectorized_graphs(events, node2higvec, rel2vec):
     '''
     遍历数据库中的事件数据，根据指定条件选择需要的事件。
@@ -61,13 +91,20 @@ def gen_vectorized_graphs(events, node2higvec, rel2vec):
         src.append(int(i[0]))
         dst.append(int(i[1]))
         msg.append(
-            torch.cat([torch.from_numpy(node2higvec[i[0]]), rel2vec[i[2]], torch.from_numpy(node2higvec[i[1]])]))
+            torch.cat(
+                [
+                    torch.from_numpy(node2higvec[i[0]]), 
+                    rel2vec[i[2]], 
+                    torch.from_numpy(node2higvec[i[1]])
+                    ]
+            )
+        )
         t.append(int(i[3]))
-
     dataset.src = torch.tensor(src)
     dataset.dst = torch.tensor(dst)
     dataset.t = torch.tensor(t)
     dataset.msg = torch.vstack(msg)
+    print("BreakPoint")
     dataset.src = dataset.src.to(torch.long)
     dataset.dst = dataset.dst.to(torch.long)
     dataset.msg = dataset.msg.to(torch.float)
@@ -116,9 +153,17 @@ def test(
     pos_o = []
 
     # Record the running time to evaluate the performance
-    start = time.perf_counter()
 
     for batch in inference_data.seq_batches(batch_size=BATCH):
+
+#*    dataset.src = torch.tensor(src)
+#*    dataset.dst = torch.tensor(dst)
+#*    dataset.t = torch.tensor(t)
+#*    dataset.msg = torch.vstack(msg)
+#*    dataset.src = dataset.src.to(torch.long)
+#*    dataset.dst = dataset.dst.to(torch.long)
+#*    dataset.msg = dataset.msg.to(torch.float)
+#*    dataset.t = dataset.t.to(torch.long)
 
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
         unique_nodes = torch.cat([unique_nodes, src, pos_dst]).unique()
@@ -204,22 +249,11 @@ def test(
 
     return time_with_loss
 
-def gen_relation_onehot():
-    relvec=torch.nn.functional.one_hot(
-        torch.arange(0, len(REL2ID.keys())//2), 
-        num_classes=len(REL2ID.keys())//2
-    )
-    rel2vec={}
-    for i in REL2ID.keys():
-        if type(i) is not int:
-            rel2vec[i]= relvec[REL2ID[i]-1]
-            rel2vec[relvec[REL2ID[i]-1]]=i
-    torch.save(rel2vec, ARTIFACT_DIR + "rel2vec")
-    return rel2vec
-
 def listen():
     cur, _ = init_database_connection()
-    for day in tqdm(range(2, 14)):
+    events=[]
+    #! range(2,14)
+    for day in tqdm(range(7, 8)):
         start_timestamp = datetime_to_ns_time_US('2018-04-' + str(day) + ' 00:00:00')
         end_timestamp = datetime_to_ns_time_US('2018-04-' + str(day + 1) + ' 00:00:00')
         sql = """
@@ -229,7 +263,7 @@ def listen():
                ORDER BY timestamp_rec;
         """ % (start_timestamp, end_timestamp)
         cur.execute(sql)
-        events = cur.fetchall()
+        events += cur.fetchall()
     return events
 
 def compute_IDF():
@@ -384,7 +418,8 @@ def anomalous_queue_construction(node_IDF, tw_list, graph_dir_path):
 
         index_count += 1
 
-def prepare(graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg):
+def analyse(graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg):
+    print("Preparing")
     test(
         inference_data=graph,
         memory=memory,
@@ -396,16 +431,28 @@ def prepare(graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg):
     )
 
 def load_data():
-    rel2vec = gen_relation_onehot()
-    node2higvec = torch.load(ARTIFACT_DIR + "node2higvec").to(device=device)
-    events = listen()
-    graph = gen_vectorized_graphs(events, node2higvec=node2higvec, rel2vec=rel2vec)
+    '''
+    initialize and load prepared data
+    '''
+    print("[*] Loading Data")
     cur, _ = init_database_connection()
+    #* rel2vec = gen_relation_onehot()
+    #* node2higvec = gen_feature(cur=cur)
+    #* rel2vec = torch.load(ARTIFACT_DIR + "rel2vec")
+    #* node2higvec = torch.load(ARTIFACT_DIR + "node2higvec")
+    #* events = listen()
+    
+    #? 会提示 RuntimeError: vstack expects a non-empty TensorList
+    #* graph = gen_vectorized_graphs(events, node2higvec=node2higvec, rel2vec=rel2vec)
+    print("[*] build graph")
+    graph = torch.load("./artifact/graph_4_7.TemporalData.simple").to(device=device)
     nodeid2msg = gen_nodeid2msg(cur=cur)
+    print("[*] load model")
     memory, gnn, link_pred, neighbor_loader = torch.load(f"{MODELS_DIR}/models.pt",map_location=device)
     return graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg
 
 def attack_investigate():
+    print("Investigating Attacks")
     original_edges_count = 0
     gg = nx.DiGraph()
     count = 0
@@ -526,22 +573,19 @@ def attack_investigate():
         graph_index += 1
 
 def aberration_investigate():
+    print("Investigating Aberration")
     node_IDF, tw_list = compute_IDF()
     anomalous_queue_construction(
         node_IDF=node_IDF,
         tw_list=tw_list,
         graph_dir_path=f"{ARTIFACT_DIR}/graph_list/"
     )
-<<<<<<< Updated upstream
 
 def main():
     graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data()
-    prepare(graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg)
+    analyse(graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg)
     aberration_investigate()
     attack_investigate()
-=======
-    torch.save(history_list, f"{ARTIFACT_DIR}/graph_4_6_history_list")
->>>>>>> Stashed changes
 
 if __name__ == "__main__":
     main()
