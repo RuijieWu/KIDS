@@ -1,9 +1,9 @@
 package Kairos
 
 import (
+	"errors"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -326,4 +326,25 @@ func GetGraphVisual(c *gin.Context) {
 		"total": len(results),
 		"data":  results,
 	})
+}
+
+// 解析文件名中的时间戳范围
+func parseTimestamp(prefix string) (startTime time.Time, endTime time.Time, err error) {
+	parts := strings.Split(prefix, "~")
+	if len(parts) != 2 {
+		err = errors.New("invalid timestamp format")
+		return
+	}
+
+	startTime, err = time.Parse("2006-01-02 15:04:05.999999999", parts[0])
+	if err != nil {
+		return
+	}
+
+	endTime, err = time.Parse("2006-01-02 15:04:05.999999999", parts[1])
+	if err != nil {
+		return
+	}
+
+	return startTime, endTime, nil
 }
