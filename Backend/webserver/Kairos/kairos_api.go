@@ -12,27 +12,34 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func datetimeToNSTimestamp(dtStr string) int64 {
+	// 将字符串解析为 time.Time 对象
+	layout := "2006-01-02 15:04:05"
+	dt, err := time.Parse(layout, dtStr)
+	if err != nil {
+		log.Println("Error parsing datetime:", err)
+		return 0
+	}
+
+	// 计算纳秒级时间戳
+	sec := dt.UnixNano() / 1e9  // 秒级时间戳
+	nsec := dt.UnixNano() % 1e9 // 纳秒部分
+
+	// 合并秒级时间戳和纳秒部分为整数类型的纳秒级时间戳
+	nanoTimestamp := sec*1e9 + int64(nsec)
+	log.Printf("Converted datetime %v to nanosecond timestamp %v\n", dt, nanoTimestamp)
+	return nanoTimestamp
+}
+
 func GetActions(c *gin.Context) {
 	// 获取查询参数
 	startTimeStr := c.Query("start_time")
 	endTimeStr := c.Query("end_time")
 
-	// 将时间字符串转换为 Unix 时间戳
-	startTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_time format"})
-		return
-	}
-	endTime, err := time.Parse("2006-01-02 15:04:05", endTimeStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_time format"})
-		return
-	}
+	startTimeUnix := datetimeToNSTimestamp(startTimeStr)
+	endTimeUnix := datetimeToNSTimestamp(endTimeStr)
 
-	startTimeUnix := startTime.Unix()
-	endTimeUnix := endTime.Unix()
-
-	log.Printf("Received actions request with start time: %v, end time: %v\n", startTime, endTime)
+	log.Printf("Received actions request with start time: %v, end time: %v\n", startTimeUnix, endTimeUnix)
 
 	// 查询数据库
 	var anomalousActions []AnomalousAction
@@ -70,19 +77,8 @@ func GetSubjects(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "5") // 默认 limit 为 5
 
 	// 将时间字符串转换为 Unix 时间戳
-	startTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_time format"})
-		return
-	}
-	endTime, err := time.Parse("2006-01-02 15:04:05", endTimeStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_time format"})
-		return
-	}
-
-	startTimeUnix := startTime.Unix()
-	endTimeUnix := endTime.Unix()
+	startTimeUnix := datetimeToNSTimestamp(startTimeStr)
+	endTimeUnix := datetimeToNSTimestamp(endTimeStr)
 
 	// 解析 limit 参数
 	limit, err := strconv.Atoi(limitStr)
@@ -91,7 +87,7 @@ func GetSubjects(c *gin.Context) {
 		return
 	}
 
-	log.Printf("Received subjects request with start time: %v, end time: %v, limit: %d\n", startTime, endTime, limit)
+	log.Printf("Received subjects request with start time: %v, end time: %v, limit: %d\n", startTimeUnix, endTimeUnix, limit)
 
 	// 查询数据库
 	var anomalousSubjects []AnomalousSubject
@@ -140,20 +136,8 @@ func GetObjects(c *gin.Context) {
 	endTimeStr := c.Query("end_time")
 	limitStr := c.DefaultQuery("limit", "5") // 默认 limit 为 5
 
-	// 将时间字符串转换为 Unix 时间戳
-	startTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_time format"})
-		return
-	}
-	endTime, err := time.Parse("2006-01-02 15:04:05", endTimeStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_time format"})
-		return
-	}
-
-	startTimeUnix := startTime.Unix()
-	endTimeUnix := endTime.Unix()
+	startTime := datetimeToNSTimestamp(startTimeStr)
+	endTime := datetimeToNSTimestamp(endTimeStr)
 
 	// 解析 limit 参数
 	limit, err := strconv.Atoi(limitStr)
@@ -171,7 +155,7 @@ func GetObjects(c *gin.Context) {
 	// 查询所有在时间段内的 AnomalousObject
 	if err := DB.Model(&AnomalousObject{}).
 		Select("time, object_type, object_name, COUNT(*) as count").
-		Where("time >= ? AND time <= ?", startTimeUnix, endTimeUnix).
+		Where("time >= ? AND time <= ?", startTime, endTime).
 		Group("time, object_type, object_name").
 		Order("count DESC").
 		Limit(limit).
@@ -183,7 +167,7 @@ func GetObjects(c *gin.Context) {
 	// 查询所有在时间段内的 DangerousObject
 	if err := DB.Model(&DangerousObject{}).
 		Select("time, object_type, object_name, COUNT(*) as count").
-		Where("time >= ? AND time <= ?", startTimeUnix, endTimeUnix).
+		Where("time >= ? AND time <= ?", startTime, endTime).
 		Group("time, object_type, object_name").
 		Order("count DESC").
 		Limit(limit).
@@ -210,21 +194,8 @@ func GetAberrationStatics(c *gin.Context) {
 	startTimeStr := c.Query("start_time")
 	endTimeStr := c.Query("end_time")
 
-	// 将时间字符串转换为时间格式
-	startTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_time format"})
-		return
-	}
-	endTime, err := time.Parse("2006-01-02 15:04:05", endTimeStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_time format"})
-		return
-	}
-
-	//转化成unix时间戳
-	startTimeUnix := startTime.Unix()
-	endTimeUnix := endTime.Unix()
+	startTimeUnix := datetimeToNSTimestamp(startTimeStr)
+	endTimeUnix := datetimeToNSTimestamp(endTimeStr)
 
 	var aberrationStatics []AberrationStaticsTable
 
@@ -246,17 +217,8 @@ func GetGraphVisual(c *gin.Context) {
 	startTimeStr := c.Query("start_time")
 	endTimeStr := c.Query("end_time")
 
-	// 将时间字符串转换为时间格式
-	startTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_time format"})
-		return
-	}
-	endTime, err := time.Parse("2006-01-02 15:04:05", endTimeStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_time format"})
-		return
-	}
+	startTime := datetimeToNSTimestamp(startTimeStr)
+	endTime := datetimeToNSTimestamp(endTimeStr)
 
 	// 指定的文件夹路径
 	dir := "../../../artifact/graph_visual"
@@ -268,7 +230,7 @@ func GetGraphVisual(c *gin.Context) {
 		return
 	}
 
-	var results []string
+	var results []gin.H
 
 	// 遍历文件，筛选符合时间范围的文件名
 	for _, file := range files {
@@ -282,8 +244,63 @@ func GetGraphVisual(c *gin.Context) {
 			continue
 		}
 
-		if fileStartTime.After(startTime) && fileEndTime.Before(endTime) {
-			results = append(results, file)
+		if fileStartTime >= startTime && fileEndTime <= endTime {
+			// 查询在这个时间范围内的 Anomalous 和 Dangerous 的 actions 数量
+			var anomalousActionCount, dangerousActionCount int64
+			if err := DB.Model(&AnomalousAction{}).
+				Where("time >= ? AND time <= ?", fileStartTime, fileEndTime).
+				Count(&anomalousActionCount).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count anomalous actions"})
+				return
+			}
+			if err := DB.Model(&DangerousAction{}).
+				Where("time >= ? AND time <= ?", fileStartTime, fileEndTime).
+				Count(&dangerousActionCount).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count dangerous actions"})
+				return
+			}
+
+			// 查询在这个时间范围内的 Anomalous 和 Dangerous 的 subjects 数量
+			var anomalousSubjectCount, dangerousSubjectCount int64
+			if err := DB.Model(&AnomalousSubject{}).
+				Where("time >= ? AND time <= ?", fileStartTime, fileEndTime).
+				Count(&anomalousSubjectCount).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count anomalous subjects"})
+				return
+			}
+			if err := DB.Model(&DangerousSubject{}).
+				Where("time >= ? AND time <= ?", fileStartTime, fileEndTime).
+				Count(&dangerousSubjectCount).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count dangerous subjects"})
+				return
+			}
+
+			// 查询在这个时间范围内的 Anomalous 和 Dangerous 的 objects 数量
+			var anomalousObjectCount, dangerousObjectCount int64
+			if err := DB.Model(&AnomalousObject{}).
+				Where("time >= ? AND time <= ?", fileStartTime, fileEndTime).
+				Count(&anomalousObjectCount).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count anomalous objects"})
+				return
+			}
+			if err := DB.Model(&DangerousObject{}).
+				Where("time >= ? AND time <= ?", fileStartTime, fileEndTime).
+				Count(&dangerousObjectCount).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count dangerous objects"})
+				return
+			}
+
+			// 构造结果
+			result := gin.H{
+				"file_name":                 base,
+				"anomalous_action_count":    anomalousActionCount,
+				"dangerous_action_count":    dangerousActionCount,
+				"anomalous_subject_count":   anomalousSubjectCount,
+				"dangerous_subject_count":   dangerousSubjectCount,
+				"anomalous_object_count":    anomalousObjectCount,
+				"dangerous_object_count":    dangerousObjectCount,
+			}
+			results = append(results, result)
 		}
 	}
 
@@ -295,21 +312,21 @@ func GetGraphVisual(c *gin.Context) {
 }
 
 // 解析文件名中的时间戳范围
-func parseTimestamp(prefix string) (startTime time.Time, endTime time.Time, err error) {
+func parseTimestamp(prefix string) (startTime int64, endTime int64, err error) {
 	parts := strings.Split(prefix, "~")
 	if len(parts) != 2 {
 		err = errors.New("invalid timestamp format")
 		return
 	}
 
-	startTime, err = time.Parse("2006-01-02 15:04:05.999999999", parts[0])
+	startTime, err = strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		return
+		return 0, 0, err
 	}
 
-	endTime, err = time.Parse("2006-01-02 15:04:05.999999999", parts[1])
+	endTime, err = strconv.ParseInt(parts[1], 10, 64)
 	if err != nil {
-		return
+		return 0, 0, err
 	}
 
 	return startTime, endTime, nil
