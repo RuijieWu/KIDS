@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
 	"KIDS/Kairos"
@@ -12,6 +13,16 @@ func main() {
 	audit_data.InitDatabaseConnection()
 	Kairos.InitKairosDatabase()
 	router := gin.Default()
+
+	// 添加CORS中间件
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"}, // 允许所有来源
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
+
 	router.POST("/data/setup-audit", audit_data.SetupAudit)
 	router.GET("/data/audit-logs", audit_data.GetAuditLogs)
 
