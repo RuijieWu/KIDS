@@ -1,9 +1,11 @@
 package Kairos
 
 import (
+	"encoding/base64"
 	"errors"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -27,7 +29,7 @@ func datetimeToNSTimestamp(dtStr string) int64 {
 
 	// 合并秒级时间戳和纳秒部分为整数类型的纳秒级时间戳
 	nanoTimestamp := sec*1e9 + int64(nsec)
-	log.Printf("Converted datetime %v to nanosecond timestamp %v\n", dt, nanoTimestamp)
+	// log.Printf("Converted datetime %v to nanosecond timestamp %v\n", dt, nanoTimestamp)
 	return nanoTimestamp
 }
 
@@ -221,7 +223,7 @@ func GetGraphVisual(c *gin.Context) {
 	endTime := datetimeToNSTimestamp(endTimeStr)
 
 	// 指定的文件夹路径
-	dir := "../../../artifact/graph_visual"
+	dir := "../../Engine/artifact/graph_visual"
 
 	// 获取目标文件夹中的所有文件
 	files, err := filepath.Glob(dir + "/*.png")
@@ -236,7 +238,7 @@ func GetGraphVisual(c *gin.Context) {
 	for _, file := range files {
 		// 提取文件名中的时间戳
 		base := filepath.Base(file)
-		prefix := strings.Split(base, ".")[0] // 去除后缀 .png
+		prefix := strings.Split(base, ".png")[0] // 去除后缀 .png
 
 		// 检查时间范围
 		fileStartTime, fileEndTime, err := parseTimestamp(prefix)
@@ -290,15 +292,23 @@ func GetGraphVisual(c *gin.Context) {
 				return
 			}
 
+			// 读取文件内容并进行Base64编码
+			fileContent, err := os.ReadFile(file)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
+				return
+			}
+
 			// 构造结果
 			result := gin.H{
-				"file_name":                 base,
-				"anomalous_action_count":    anomalousActionCount,
-				"dangerous_action_count":    dangerousActionCount,
-				"anomalous_subject_count":   anomalousSubjectCount,
-				"dangerous_subject_count":   dangerousSubjectCount,
-				"anomalous_object_count":    anomalousObjectCount,
-				"dangerous_object_count":    dangerousObjectCount,
+				"file_name":               base,
+				"file_content":            base64.StdEncoding.EncodeToString(fileContent),
+				"anomalous_action_count":  anomalousActionCount,
+				"dangerous_action_count":  dangerousActionCount,
+				"anomalous_subject_count": anomalousSubjectCount,
+				"dangerous_subject_count": dangerousSubjectCount,
+				"anomalous_object_count":  anomalousObjectCount,
+				"dangerous_object_count":  dangerousObjectCount,
 			}
 			results = append(results, result)
 		}
@@ -312,22 +322,46 @@ func GetGraphVisual(c *gin.Context) {
 }
 
 // 解析文件名中的时间戳范围
+// 解析文件名中的时间戳范围
 func parseTimestamp(prefix string) (startTime int64, endTime int64, err error) {
-	parts := strings.Split(prefix, "~")
+	// 替换非标准字符
+	correctedPrefix := strings.ReplaceAll(prefix, "", ":")
+
+	// 去掉后缀 _6
+	if strings.Contains(correctedPrefix, "_") {
+		correctedPrefix = strings.Split(correctedPrefix, "_")[0]
+	}
+
+	parts := strings.Split(correctedPrefix, "~")
 	if len(parts) != 2 {
 		err = errors.New("invalid timestamp format")
 		return
 	}
 
-	startTime, err = strconv.ParseInt(parts[0], 10, 64)
-	if err != nil {
-		return 0, 0, err
-	}
+	// 解析时间戳
+	startTimeStr, endTimeStr := parts[0], parts[1]
 
-	endTime, err = strconv.ParseInt(parts[1], 10, 64)
-	if err != nil {
-		return 0, 0, err
-	}
+	startTime = nsDatetimeToNSTimestamp(startTimeStr)
+	endTime = nsDatetimeToNSTimestamp(endTimeStr)
+
+	log.Printf("Parsed timestamp: %v ~ %v\n", startTime, endTime)
 
 	return startTime, endTime, nil
+}
+
+func nsDatetimeToNSTimestamp(dtStr string) int64 {
+	// 将字符串解析为 time.Time 对象
+	layout := "2006-01-02 15:04:05.999999999"
+	dt, err := time.Parse(layout, dtStr)
+	if err != nil {
+		log.Println("Error parsing datetime:", err)
+		return 0
+	}
+	// 计算纳秒级时间戳
+	sec := dt.UnixNano() / 1e9  // 秒级时间戳
+	nsec := dt.UnixNano() % 1e9 // 纳秒部分
+
+	// 合并秒级时间戳和纳秒部分为整数类型的纳秒级时间戳
+	nanoTimestamp := sec*1e9 + int64(nsec)
+	return nanoTimestamp
 }
