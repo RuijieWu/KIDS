@@ -77,7 +77,6 @@ def test(
     start_time = inference_data.t[0]
     event_count = 0
     pos_o = []
-    ###?
 
     # Record the running time to evaluate the performance
     print("[*] Analyse Begin")
@@ -437,36 +436,42 @@ def main():
     Entrance of this Engine
     '''
     arguments = arg_parse(sys.argv)
-    if not arguments[0]:
-        print(arguments[2])
+    try:
+        if not arguments[0]:
+            print(arguments[2])
+            sys.exit(0)
+        if arguments[0] == "init":
+            init()
+        if arguments[0] == "run":
+            begin_time = arguments[1]
+            end_time = arguments[2]
+            cur, connect = init_database_connection()
+            graphs,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data(
+                cur=cur,
+                begin_time=begin_time,
+                end_time=end_time
+            )
+            analyse(
+                graphs=graphs,
+                memory=memory,
+                gnn=gnn,
+                link_pred=link_pred,
+                neighbor_loader=neighbor_loader,
+                nodeid2msg=nodeid2msg
+            )
+            aberration_investigate(
+                cur=cur,
+                connect=connect
+            )
+            attack_investigate(
+                cur=cur,
+                connect=connect
+            )
+    except IndexError:
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("[*] Engine Terminated")
         sys.exit(0)
-    if arguments[0] == "init":
-        init()
-    if arguments[0] == "run":
-        begin_time = arguments[1]
-        end_time = arguments[2]
-        cur, connect = init_database_connection()
-    #    graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data(
-    #        cur=cur,
-    #        begin_time=begin_time,
-    #        end_time=end_time
-    #    )
-    #    analyse(
-    #        graphs=graph,
-    #        memory=memory,
-    #        gnn=gnn,
-    #        link_pred=link_pred,
-    #        neighbor_loader=neighbor_loader,
-    #        nodeid2msg=nodeid2msg
-    #    )
-        aberration_investigate(
-            cur=cur,
-            connect=connect
-        )
-        attack_investigate(
-            cur=cur,
-            connect=connect
-        )
 
 if __name__ == "__main__":
     main()

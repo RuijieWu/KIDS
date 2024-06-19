@@ -156,14 +156,12 @@ def hashgen(l):
 #* embedder
 
 def get_events(cur,begin_time,end_time):
-    start_timestamp = datetime_to_ns_time_US(begin_time)
-    end_timestamp = datetime_to_ns_time_US(end_time)
     sql = """
     select * from event_table
     where
           timestamp_rec>'%s' and timestamp_rec<'%s'
            ORDER BY timestamp_rec;
-    """ % (start_timestamp, end_timestamp)
+    """ % (begin_time, end_time)
     cur.execute(sql)
     events = cur.fetchall()
     return events
@@ -202,7 +200,7 @@ def replace_path_name(path_name):
     return path_name
 
 def save_dangerous_actions(cur,connect,dangerous_action_list):
-    sql = '''insert into  dangerous_actions_table
+    sql = '''insert into dangerous_actions_table
                          values %s
             '''
     ex.execute_values(cur, sql, dangerous_action_list, page_size=10000)
@@ -216,14 +214,14 @@ def save_dangerous_subjects(cur,connect,dangerous_subjects):
     connect.commit()
 
 def save_dangerous_objects(cur,connect,dangerous_objects):
-    sql = '''insert into  dangerous_objects_table
+    sql = '''insert into dangerous_objects_table
                          values %s
             '''
     ex.execute_values(cur, sql, dangerous_objects, page_size=10000)
     connect.commit()
 
 def save_anomalous_actions(cur,connect,anomalous_actions):
-    sql = '''insert into  anomalous_actions_table
+    sql = '''insert into anomalous_actions_table
                          values %s
             '''
     ex.execute_values(cur, sql, anomalous_actions, page_size=10000)
@@ -237,7 +235,7 @@ def save_anomalous_subjects(cur,connect,anomalous_subjects):
     connect.commit()
 
 def save_anomalous_objects(cur,connect,anomalous_objects):
-    sql = '''insert into  anomalous_objects_table
+    sql = '''insert into anomalous_objects_table
                          values %s
             '''
     ex.execute_values(cur, sql, anomalous_objects, page_size=10000)
@@ -246,25 +244,11 @@ def save_anomalous_objects(cur,connect,anomalous_objects):
 def save_aberration_statics(
     cur,
     connect,
-    path,
-    loss_avg,
-    count,
-    percentage,
-    node_num,
-    edge_num
+    aberration_statics
 ):
-    datalist = []
-    datalist.append([
-        path,
-        loss_avg,
-        count,
-        percentage,
-        node_num,
-        edge_num
-    ])
     sql = '''insert into aberration_statics_table
                          values %s
             '''
-    ex.execute_values(cur, sql, datalist, page_size=10000)
+    ex.execute_values(cur, sql, aberration_statics, page_size=10000)
     connect.commit()
 #################################################

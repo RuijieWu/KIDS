@@ -18,7 +18,7 @@ GRAPHS_DIR = ARTIFACT_DIR + "graphs/"
 
 # The directory to save the models
 MODELS_DIR = ARTIFACT_DIR + "models/"
-MODEL_NAME = "streamspot_models"
+MODEL_NAME = "cadets3_models"
 MODELS_PATH = MODELS_DIR + MODEL_NAME + ".pt"
 # The directory to save the results after testing
 TEST_RE = ARTIFACT_DIR + "test_re/"
@@ -242,6 +242,15 @@ EDGE_REVERSED = [
 # The following edges are the types only considered to construct the
 # temporal graph for experiments.
 EDGE_TYPE={
+    "cadets-e3":[
+    "EVENT_WRITE",
+    "EVENT_READ",
+    "EVENT_CLOSE",
+    "EVENT_OPEN",
+    "EVENT_EXECUTE",
+    "EVENT_SENDTO",
+    "EVENT_RECVFROM", 
+    ],
     "low":[    
         'EVENT_CLOSE',
         'EVENT_OPEN',
@@ -284,6 +293,22 @@ EDGE_TYPE={
 
 # The map between edge type and edge ID
 REL2ID = {
+    "cadets-e3":{ 
+        1: 'EVENT_WRITE',
+        'EVENT_WRITE': 1,
+        2: 'EVENT_READ',
+        'EVENT_READ': 2,
+        3: 'EVENT_CLOSE',
+        'EVENT_CLOSE': 3,
+        4: 'EVENT_OPEN',
+        'EVENT_OPEN': 4,
+        5: 'EVENT_EXECUTE',
+        'EVENT_EXECUTE': 5,
+        6: 'EVENT_SENDTO',
+        'EVENT_SENDTO': 6,
+        7: 'EVENT_RECVFROM',
+        'EVENT_RECVFROM': 7
+    },
     "low":{
         'EVENT_CLOSE':1,
         1:'EVENT_CLOSE',
@@ -442,9 +467,20 @@ BETA_DAY7 = 100
 #
 #########################################################
 
-DETECTION_LEVEL = "high"
-
 KEYWORDS = {
+    "cadets-e3":[        
+            'netflow',
+            '/home/george/Drafts',
+            'usr',
+            'proc',
+            'var',
+            'cadet',
+            '/var/log/debug.log',
+            '/var/log/cron',
+            '/home/charles/Drafts',
+            '/etc/ssl/cert.pem',
+            '/tmp/.31.3022e',
+    ],
     "low":[
         'netflow',
         '/home/george/Drafts',
@@ -601,6 +637,17 @@ KEYWORDS = {
 #
 #########################################################
 ATTACK_NODES = {
+    "cadets-e3":{
+        '/tmp/vUgefal',
+        'vUgefal',
+        '/var/log/devc',
+        '/etc/passwd',
+        '81.49.200.166',
+        '61.167.39.128',
+        '78.205.235.65',
+        '139.123.0.113',
+        "'nginx'",
+    },
     "low":[
         '/tmp/vUgefal',
         'vUgefal',
@@ -736,6 +783,20 @@ ATTACK_NODES = {
 }
 
 REPLACE_DICT = {
+    "cadets-e3":{
+    '/run/shm/': '/run/shm/*',
+    '/home/admin/.cache/mozilla/firefox/': '/home/admin/.cache/mozilla/firefox/*',
+    '/home/admin/.mozilla/firefox': '/home/admin/.mozilla/firefox*',
+    '/data/replay_logdb/': '/data/replay_logdb/*',
+    '/home/admin/.local/share/applications/': '/home/admin/.local/share/applications/*',
+    '/usr/share/applications/': '/usr/share/applications/*',
+    '/lib/x86_64-linux-gnu/': '/lib/x86_64-linux-gnu/*',
+    '/proc/': '/proc/*',
+    '/stat': '*/stat',
+    '/etc/bash_completion.d/': '/etc/bash_completion.d/*',
+    '/usr/bin/python2.7': '/usr/bin/python2.7/*',
+    '/usr/lib/python2.7': '/usr/lib/python2.7/*',    
+    },
     "low":{
         '/run/shm/': '/run/shm/*',
         '/home/admin/.cache/mozilla/firefox/': '/home/admin/.cache/mozilla/firefox/*',
@@ -806,13 +867,22 @@ REPLACE_DICT = {
 }
 
 ATTACK_LIST = {
+    "cadets-e3":[],
     "low":[],
     "medium":[],
     "high":[]
 }
 
 DEFAULT_SHAPE = "diamond"
+
 BEGIN_TIME = 3392812800000000000
 END_TIME = 0
+DAY = 86400000000000
+HOUR = 3600000000000
+QUARTER = 900000000000
+MINUTE = 60000000000
+TIME_INTERVAL = DAY
+
+DETECTION_LEVEL = "cadets-e3"
 
 HELP_MSG = ""

@@ -1,6 +1,6 @@
 '''
 Date: 2024-06-12 22:36:44
-LastEditTime: 2024-06-15 23:02:13
+LastEditTime: 2024-06-19 17:27:10
 Description: 
 '''
 import torch
@@ -196,15 +196,21 @@ def anomalous_queue_construction(
         logger.write(f"Anomalous node count: {node_num}")
         logger.write(f"Anomalous edge count: {edge_num}")
         logger.write("**************************************************\n")
-        save_aberration_statics(
-            cur,
-            connect,
-            f_path[:-4],
+        begin_time = datetime_to_ns_time(f_path[:19])
+        end_time = datetime_to_ns_time(f_path[30:49])
+        aberration_statics = [[
+            begin_time,
+            end_time,
             loss_avg,
             count,
             count / count,
             node_num,
             edge_num
+        ]]
+        save_aberration_statics(
+            cur,
+            connect,
+            aberration_statics
         )
 
     return history_list

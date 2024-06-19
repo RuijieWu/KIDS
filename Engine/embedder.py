@@ -1,6 +1,6 @@
 '''
 Date: 2024-06-12 21:29:27
-LastEditTime: 2024-06-15 23:01:57
+LastEditTime: 2024-06-19 17:27:33
 Description: Embed Events from database into GNN
 '''
 from sklearn.feature_extraction import FeatureHasher
@@ -68,36 +68,50 @@ def gen_vectorized_graphs(
     end_time,
     recording = False
 ):
-    events = get_events(cur,begin_time,end_time)
     graphs = []
-    start_timestamp = datetime_to_ns_time_US(begin_time)
+    begin_timestamp = datetime_to_ns_time_US(begin_time)
     end_timestamp = datetime_to_ns_time_US(end_time)
-    edge_list = []
-    for e in events:
-        edge_temp = [int(e[1]), int(e[4]), e[2], e[5]]
-        if e[2] in EDGE_TYPE[DETECTION_LEVEL]:
-            edge_list.append(edge_temp)
-    dataset = TemporalData()
-    src = []
-    dst = []
-    msg = []
-    t = []
-    for i in edge_list:
-        src.append(int(i[0]))
-        dst.append(int(i[1]))
-        msg.append(
-            torch.cat([torch.from_numpy(node2higvec[i[0]]), rel2vec[i[2]], torch.from_numpy(node2higvec[i[1]])]))
-        t.append(int(i[3]))
+    for interval_time in tqdm(range(begin_timestamp,end_timestamp,TIME_INTERVAL)):
+        begin_time = interval_time
+        end_time = interval_time + TIME_INTERVAL
+        end_time = end_time if end_time < end_timestamp else end_timestamp
+        events = get_events(cur,begin_time,end_time)
+        if not events:
+            continue
+        edge_list = []
+        for e in events:
+            edge_temp = [int(e[1]), int(e[4]), e[2], e[5]]
+            if e[2] in EDGE_TYPE[DETECTION_LEVEL]:
+                edge_list.append(edge_temp)
 
-    dataset.src = torch.tensor(src)
-    dataset.dst = torch.tensor(dst)
-    dataset.t = torch.tensor(t)
-    dataset.msg = torch.vstack(msg)
-    dataset.src = dataset.src.to(torch.long)
-    dataset.dst = dataset.dst.to(torch.long)
-    dataset.msg = dataset.msg.to(torch.float)
-    dataset.t = dataset.t.to(torch.long)
-    if recording:
-        torch.save(dataset, GRAPHS_DIR + "/graph_" + str(start_timestamp) + '~' + str(end_timestamp) + ".TemporalData.simple")
-    graphs.append(dataset)
+        dataset = TemporalData()
+        src = []
+        dst = []
+        msg = []
+        t = []
+        for i in edge_list:
+            src.append(int(i[0]))
+            dst.append(int(i[1]))
+            msg.append(torch.cat([
+                    torch.from_numpy(node2higvec[i[0]]),
+                    rel2vec[i[2]],
+                    torch.from_numpy(node2higvec[i[1]])
+                ]))
+            t.append(int(i[3]))
+
+        dataset.src = torch.tensor(src)
+        dataset.dst = torch.tensor(dst)
+        dataset.t = torch.tensor(t)
+        dataset.msg = torch.vstack(msg)
+        dataset.src = dataset.src.to(torch.long)
+        dataset.dst = dataset.dst.to(torch.long)
+        dataset.msg = dataset.msg.to(torch.float)
+        dataset.t = dataset.t.to(torch.long)
+
+        if recording:
+            torch.save(
+                dataset,
+               GRAPHS_DIR + "/graph_" + str(begin_time) + '~' + str(end_time) + ".TemporalData.simple"
+            )
+        graphs.append(dataset)
     return graphs
