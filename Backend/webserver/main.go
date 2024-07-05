@@ -7,6 +7,7 @@ import (
 	"KIDS/Kairos"
 	"KIDS/audit_data"
 	"KIDS/open_api_forward"
+	"KIDS/Blacklist"
 )
 
 func main() {
@@ -37,6 +38,9 @@ func main() {
 	router.GET("/kairos/objects", Kairos.GetObjects)
 	router.GET("/kairos/aberration-statics", Kairos.GetAberrationStatics)
 	router.GET("/kairos/graph-visual", Kairos.GetGraphVisual)
+
+	router.POST("/blacklist/set-black-list", Blacklist.SetBlackList)
+	router.GET("/blacklist/get-black-list", Blacklist.GetBlackList)
 
 	router.Run(":8080")
 }
