@@ -74,7 +74,24 @@ func processAuditLogs() {
 // check the events in past 10 seconds and insert the blacklisted actions. set the flag to 0
 func InsertBlacklistActions(startTime string, endTime string) {
 	var actions []audit_data.Event
-	DB.Where("timestamp_rec >= ? AND timestamp_rec <= ?", startTime, endTime).Find(&actions)
+
+	// convert the time string to time.Time
+	startTimeParsed, err := time.Parse("2006-01-02T15:04:05", startTime)
+	if err != nil {
+		log.Printf("Failed to parse start time: %v", err)
+		return
+	}
+	endTimeParsed, err := time.Parse("2006-01-02T15:04:05", endTime)
+	if err != nil {
+		log.Printf("Failed to parse end time: %v", err)
+		return
+	}
+
+	// 将 time.Time 对象转换为 Unix 时间戳
+	startTimeUnix := startTimeParsed.Unix()
+	endTimeUnix := endTimeParsed.Unix()
+
+	DB.Where("timestamp_rec >= ? AND timestamp_rec <= ?", startTimeUnix, endTimeUnix).Find(&actions)
 	for _, action := range actions {
 		blacklistAction := BlacklistAction{
 			SrcNode:      action.SrcNode,
