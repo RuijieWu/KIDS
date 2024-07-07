@@ -89,10 +89,11 @@ func InsertBlacklistActions(startTime string, endTime string) {
 	}
 
 	// 将 time.Time 对象转换为 Unix 时间戳
-	startTimeUnix := startTimeParsed.Unix()
-	endTimeUnix := endTimeParsed.Unix()
+	startTimeUnix := fmt.Sprintf("%d000000000", startTimeParsed.Unix())
+	endTimeUnix := fmt.Sprintf("%d000000000", endTimeParsed.Unix())
 
 	DB.Where("timestamp_rec >= ? AND timestamp_rec <= ?", startTimeUnix, endTimeUnix).Find(&actions)
+	fmt.Println(startTimeUnix, endTimeUnix, actions)
 	for _, action := range actions {
 		// if the action's subject or object is in the blacklist, insert the action
 		if IsBlacklisted(action.SrcNode) || IsBlacklisted(action.DstNode) {
