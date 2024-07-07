@@ -339,7 +339,7 @@ func storeEvent(db *gorm.DB, events Events, processed map[string]bool, nodeHash2
 	}
 }
 
-func insertEvents(events Events) {
+func InsertEvents(events Events) {
 	storeNetFlow(events.SocketOps, DB)
 	storeSubject(events.FolderWatch, DB)
 	storeFile(events.FolderWatch, DB)

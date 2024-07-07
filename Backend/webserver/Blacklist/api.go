@@ -1,13 +1,8 @@
 package Blacklist
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,9 +34,9 @@ import (
 */
 
 type BlackList struct {
-	NetFlow  []DangerousNetFlow  `json:"netflow"`
-	Subject  []DangerousSubject  `json:"subject"`
-	File     []DangerousFile     `json:"file"`
+	NetFlow []BlacklistNetFlow `json:"netflow"`
+	Subject []BlacklistSubject `json:"subject"`
+	File    []BlacklistFile    `json:"file"`
 }
 
 func SetBlackList(c *gin.Context) {
@@ -65,3 +60,13 @@ func SetBlackList(c *gin.Context) {
 }
 
 // GetBlackList 获取黑名单
+// find all blacklist actions with flag = 0; send the blacklist actions to the frontend and set the flag to 1
+func GetBlackList(c *gin.Context) {
+	var blackListActions []BlacklistAction
+	DB.Where("flag = ?", 0).Find(&blackListActions)
+	c.JSON(http.StatusOK, blackListActions)
+	for _, blackListAction := range blackListActions {
+		blackListAction.Flag = 1
+		DB.Save(&blackListAction)
+	}
+}

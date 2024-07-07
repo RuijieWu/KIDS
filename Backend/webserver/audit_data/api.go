@@ -110,7 +110,7 @@ func GetAuditLogs(c *gin.Context) {
 		return
 	}
 	
-	insertEvents(events)
+	InsertEvents(events)
 
 	c.JSON(resp.StatusCode, result)
 }
