@@ -48,9 +48,7 @@ func SetBlackList(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	fmt.Println(blackList)
 	for _, netFlow := range blackList.NetFlow {
-		fmt.Println(netFlow)
 		DB.Create(&netFlow)
 	}
 	for _, subject := range blackList.Subject {
