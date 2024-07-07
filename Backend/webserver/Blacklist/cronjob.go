@@ -36,9 +36,18 @@ func Cronjob() {
 }
 
 func processAuditLogs() {
-	// Set the time range for fetching the audit logs
-	startTime := time.Now().Add(-10 * time.Second).Format("2006-01-02T15:04:05")
-	endTime := time.Now().Format("2006-01-02T15:04:05")
+	location, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		fmt.Println("Error loading location:", err)
+		return
+	}
+
+	// 获取当前的时间并转换为 Asia/Shanghai 时区
+	now := time.Now().In(location)
+	startTime := now.Add(-10 * time.Second).Format("2006-01-02T15:04:05")
+	startTimeUnix := now.Add(-10 * time.Second).UnixNano()
+	endTime := now.Format("2006-01-02T15:04:05")
+	endTimeUnix := now.UnixNano()
 
 	pythonURL := "http://localhost:8010/audit-logs"
 	resp, err := http.Get(pythonURL + "?start_time=" + startTime + "&end_time=" + endTime)
@@ -69,31 +78,14 @@ func processAuditLogs() {
 
 	// Filter and insert events
 	audit_data.InsertEvents(events)
-	InsertBlacklistActions(startTime, endTime)
+	InsertBlacklistActions(fmt.Sprintf("%d", startTimeUnix), fmt.Sprintf("%d", endTimeUnix))
 }
 
 // check the events in past 10 seconds and insert the blacklisted actions. set the flag to 0
-func InsertBlacklistActions(startTime string, endTime string) {
+func InsertBlacklistActions(startTimeUnix string, endTimeUnix string) {
 	var actions []audit_data.Event
 
-	// convert the time string to time.Time
-	startTimeParsed, err := time.Parse("2006-01-02T15:04:05", startTime)
-	if err != nil {
-		log.Printf("Failed to parse start time: %v", err)
-		return
-	}
-	endTimeParsed, err := time.Parse("2006-01-02T15:04:05", endTime)
-	if err != nil {
-		log.Printf("Failed to parse end time: %v", err)
-		return
-	}
-
-	// 将 time.Time 对象转换为 Unix 时间戳
-	startTimeUnix := fmt.Sprintf("%d000000000", startTimeParsed.Unix())
-	endTimeUnix := fmt.Sprintf("%d000000000", endTimeParsed.Unix())
-
 	DB.Where("timestamp_rec >= ? AND timestamp_rec <= ?", startTimeUnix, endTimeUnix).Find(&actions)
-	fmt.Println(startTimeUnix, endTimeUnix, actions)
 	for _, action := range actions {
 		// if the action's subject or object is in the blacklist, insert the action
 		if IsBlacklisted(action.SrcNode) || IsBlacklisted(action.DstNode) {
@@ -118,8 +110,7 @@ func InsertBlacklistActions(startTime string, endTime string) {
 func IsBlacklisted(node string) bool {
 	// search for the node in the audit_data's node2uuid
 	var node2uuid audit_data.NodeID
-	fmt.Println(node)
-	DB.Where("node = ?", node).First(&node2uuid)
+	DB.Where("hash_id = ?", node).First(&node2uuid)
 
 	if node2uuid.Type == "netflow" {
 		var orignNode audit_data.NetFlowNode
