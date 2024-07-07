@@ -15,7 +15,7 @@ import (
 
 func init() {
 	var err error
-	dsn := "user=username password=password dbname=dbname host=hostname port=port sslmode=disable TimeZone=Asia/Shanghai"
+	dsn := "host=/var/run/postgresql/ user=postgres password=postgres dbname=tc_cadet_dataset_db port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
