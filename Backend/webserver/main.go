@@ -13,6 +13,7 @@ import (
 func main() {
 	audit_data.InitDatabaseConnection()
 	Kairos.InitKairosDatabase()
+	Blacklist.InitBlacklistDatabase()
 
 	go Blacklist.Cronjob()
 
