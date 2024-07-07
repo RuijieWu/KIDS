@@ -16,7 +16,7 @@ type BlacklistSubject struct {
 }
 
 func (BlacklistSubject) TableName() string {
-	return "Blacklist_subjects_table"
+	return "blacklist_subjects_table"
 }
 
 type BlacklistAction struct {
@@ -31,7 +31,7 @@ type BlacklistAction struct {
 }
 
 func (BlacklistAction) TableName() string {
-	return "Blacklist_actions_table"
+	return "blacklist_actions_table"
 }
 
 type BlacklistFile struct {
@@ -39,7 +39,7 @@ type BlacklistFile struct {
 }
 
 func (BlacklistFile) TableName() string {
-	return "Blacklist_files_table"
+	return "blacklist_files_table"
 }
 
 type BlacklistNetFlow struct {
