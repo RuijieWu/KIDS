@@ -47,12 +47,16 @@ func SetBlackList(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	//clear the table
+	DB.Exec("TRUNCATE TABLE blacklist_netflows_table")
 	for _, netFlow := range blackList.NetFlow {
 		DB.Create(&netFlow)
 	}
+	DB.Exec("TRUNCATE TABLE blacklist_subjects_table")
 	for _, subject := range blackList.Subject {
 		DB.Create(&subject)
 	}
+	DB.Exec("TRUNCATE TABLE blacklist_files_table")
 	for _, file := range blackList.File {
 		DB.Create(&file)
 	}
