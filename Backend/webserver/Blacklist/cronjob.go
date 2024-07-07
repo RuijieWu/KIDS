@@ -88,26 +88,28 @@ func InsertBlacklistActions(startTimeUnix string, endTimeUnix string) {
 	DB.Where("timestamp_rec >= ? AND timestamp_rec <= ?", startTimeUnix, endTimeUnix).Find(&actions)
 	for _, action := range actions {
 		// if the action's subject or object is in the blacklist, insert the action
-		if IsBlacklisted(action.SrcNode) || IsBlacklisted(action.DstNode) {
-			blacklistAction := BlacklistAction{
-				SrcNode:      action.SrcNode,
-				SrcIndexID:   action.SrcIndexID,
-				Operation:    action.Operation,
-				DstNode:      action.DstNode,
-				DstIndexID:   action.DstIndexID,
+		if subject, subjectType, ok := IsBlacklisted(action.SrcNode); ok {
+			DB.Create(&BlacklistAction{
+				TargetName:   subject,
+				TargetType:   subjectType,
 				TimestampRec: action.TimestampRec,
 				Flag:         0,
-			}
-			// compare all parms except flag; if the action does not exist, insert it
-			DB.Where("src_node = ? AND src_index_id = ? AND operation = ? AND dst_node = ? AND dst_index_id = ? AND timestamp_rec = ?",
-				blacklistAction.SrcNode, blacklistAction.SrcIndexID, blacklistAction.Operation, blacklistAction.DstNode, blacklistAction.DstIndexID, blacklistAction.TimestampRec).FirstOrCreate(&blacklistAction)
+			})
+		}
+		if object, objectType, ok := IsBlacklisted(action.DstNode); ok {
+			DB.Create(&BlacklistAction{
+				TargetName:   object,
+				TargetType:   objectType,
+				TimestampRec: action.TimestampRec,
+				Flag:         0,
+			})
 		}
 	}
 }
 
 // check if the node is in the blacklist
 // first get the uuid and search for it in audit_data's nodes; then search for the node in the blacklist
-func IsBlacklisted(node string) bool {
+func IsBlacklisted(node string) (string, string, bool) {
 	// search for the node in the audit_data's node2uuid
 	var node2uuid audit_data.NodeID
 	DB.Where("hash_id = ?", node).First(&node2uuid)
@@ -118,9 +120,9 @@ func IsBlacklisted(node string) bool {
 		var blackNode BlacklistNetFlow
 		DB.Where("src_addr = ? AND src_port = ? AND dst_addr = ? AND dst_port = ?", orignNode.LocalAddr, orignNode.LocalPort, orignNode.RemoteAddr, orignNode.RemotePort).First(&blackNode)
 		if blackNode.ID != 0 {
-			return true
+			return fmt.Sprintf("%s:%s -> %s:%s", orignNode.LocalAddr, orignNode.LocalPort, orignNode.RemoteAddr, orignNode.RemotePort), "netflow", true
 		} else {
-			return false
+			return "", "", false
 		}
 	}
 
@@ -130,9 +132,9 @@ func IsBlacklisted(node string) bool {
 		var blackNode BlacklistSubject
 		DB.Where("exec = ?", orignNode.Exec).First(&blackNode)
 		if blackNode.ID != 0 {
-			return true
+			return orignNode.Exec, "subject", true
 		} else {
-			return false
+			return "", "", false
 		}
 	}
 
@@ -142,11 +144,11 @@ func IsBlacklisted(node string) bool {
 		var blackNode BlacklistFile
 		DB.Where("path = ?", orignNode.Path).First(&blackNode)
 		if blackNode.ID != 0 {
-			return true
+			return orignNode.Path, "file", true
 		} else {
-			return false
+			return "", "", false
 		}
 	}
 
-	return false
+	return "", "", false
 }

@@ -11,11 +11,8 @@ var DB *gorm.DB
 
 type BlacklistAction struct {
 	gorm.Model
-	SrcNode      string `gorm:"column:src_node"`
-	SrcIndexID   string `gorm:"column:src_index_id"`
-	Operation    string `gorm:"column:operation"`
-	DstNode      string `gorm:"column:dst_node"`
-	DstIndexID   string `gorm:"column:dst_index_id"`
+	TargetName   string `gorm:"column:target_name"`
+	TargetType   string `gorm:"column:target_type"`
 	TimestampRec int64  `gorm:"column:timestamp_rec"`
 	Flag         int    `gorm:"column:flag"`
 }
