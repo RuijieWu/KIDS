@@ -42,8 +42,8 @@ func main() {
 	router.GET("/kairos/aberration-statics", Kairos.GetAberrationStatics)
 	router.GET("/kairos/graph-visual", Kairos.GetGraphVisual)
 
-	router.POST("/blacklist/set-black-list", Blacklist.SetBlackList)
-	router.GET("/blacklist/get-black-list", Blacklist.GetBlackList)
+	router.POST("/blacklist/set-blacklist", Blacklist.SetBlackList)
+	router.GET("/blacklist/get-blacklist", Blacklist.GetBlackList)
 
 	router.Run(":8080")
 
