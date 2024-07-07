@@ -1,7 +1,6 @@
 package Blacklist
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 

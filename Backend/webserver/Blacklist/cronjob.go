@@ -2,6 +2,7 @@ package Blacklist
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -116,6 +117,7 @@ func InsertBlacklistActions(startTime string, endTime string) {
 func IsBlacklisted(node string) bool {
 	// search for the node in the audit_data's node2uuid
 	var node2uuid audit_data.NodeID
+	fmt.Println(node)
 	DB.Where("node = ?", node).First(&node2uuid)
 
 	if node2uuid.Type == "netflow" {
