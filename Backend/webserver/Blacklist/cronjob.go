@@ -93,17 +93,66 @@ func InsertBlacklistActions(startTime string, endTime string) {
 
 	DB.Where("timestamp_rec >= ? AND timestamp_rec <= ?", startTimeUnix, endTimeUnix).Find(&actions)
 	for _, action := range actions {
-		blacklistAction := BlacklistAction{
-			SrcNode:      action.SrcNode,
-			SrcIndexID:   action.SrcIndexID,
-			Operation:    action.Operation,
-			DstNode:      action.DstNode,
-			DstIndexID:   action.DstIndexID,
-			TimestampRec: action.TimestampRec,
-			Flag:         0,
+		// if the action's subject or object is in the blacklist, insert the action
+		if IsBlacklisted(action.SrcNode) || IsBlacklisted(action.DstNode) {
+			blacklistAction := BlacklistAction{
+				SrcNode:      action.SrcNode,
+				SrcIndexID:   action.SrcIndexID,
+				Operation:    action.Operation,
+				DstNode:      action.DstNode,
+				DstIndexID:   action.DstIndexID,
+				TimestampRec: action.TimestampRec,
+				Flag:         0,
+			}
+			// compare all parms except flag; if the action does not exist, insert it
+			DB.Where("src_node = ? AND src_index_id = ? AND operation = ? AND dst_node = ? AND dst_index_id = ? AND timestamp_rec = ?",
+				blacklistAction.SrcNode, blacklistAction.SrcIndexID, blacklistAction.Operation, blacklistAction.DstNode, blacklistAction.DstIndexID, blacklistAction.TimestampRec).FirstOrCreate(&blacklistAction)
 		}
-		// compare all parms except flag; if the action does not exist, insert it
-		DB.Where("src_node = ? AND src_index_id = ? AND operation = ? AND dst_node = ? AND dst_index_id = ? AND timestamp_rec = ?",
-			blacklistAction.SrcNode, blacklistAction.SrcIndexID, blacklistAction.Operation, blacklistAction.DstNode, blacklistAction.DstIndexID, blacklistAction.TimestampRec).FirstOrCreate(&blacklistAction)
 	}
+}
+
+// check if the node is in the blacklist
+// first get the uuid and search for it in audit_data's nodes; then search for the node in the blacklist
+func IsBlacklisted(node string) bool {
+	// search for the node in the audit_data's node2uuid
+	var node2uuid audit_data.NodeID
+	DB.Where("node = ?", node).First(&node2uuid)
+
+	if node2uuid.Type == "netflow" {
+		var orignNode audit_data.NetFlowNode
+		DB.Where("hash_id = ?", node2uuid.Hash).First(&orignNode)
+		var blackNode BlacklistNetFlow
+		DB.Where("src_addr = ? AND src_port = ? AND dst_addr = ? AND dst_port = ?", orignNode.LocalAddr, orignNode.LocalPort, orignNode.RemoteAddr, orignNode.RemotePort).First(&blackNode)
+		if blackNode.ID != 0 {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	if node2uuid.Type == "subject" {
+		var orignNode audit_data.SubjectNode
+		DB.Where("hash_id = ?", node2uuid.Hash).First(&orignNode)
+		var blackNode BlacklistSubject
+		DB.Where("exec = ?", orignNode.Exec).First(&blackNode)
+		if blackNode.ID != 0 {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	if node2uuid.Type == "file" {
+		var orignNode audit_data.FileNode
+		DB.Where("hash_id = ?", node2uuid.Hash).First(&orignNode)
+		var blackNode BlacklistFile
+		DB.Where("path = ?", orignNode.Path).First(&blackNode)
+		if blackNode.ID != 0 {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	return false
 }

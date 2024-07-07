@@ -1,6 +1,7 @@
 package Blacklist
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -14,10 +15,10 @@ import (
 {
 	"netflow": [
 		{
-			"local_addr": "",
-			"local_port": "",
-			"remote_addr": "",
-			"remote_port": ""
+			"src_addr": "192.168.1.1",
+			"src_port": "8080",
+			"dst_addr": "93.184.216.34",
+			"dst_port": "443"
 		}
 	],
 	"subject": [
@@ -47,7 +48,9 @@ func SetBlackList(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	fmt.Println(blackList)
 	for _, netFlow := range blackList.NetFlow {
+		fmt.Println(netFlow)
 		DB.Create(&netFlow)
 	}
 	for _, subject := range blackList.Subject {

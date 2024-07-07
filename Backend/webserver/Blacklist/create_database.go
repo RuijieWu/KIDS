@@ -9,16 +9,6 @@ import (
 
 var DB *gorm.DB
 
-// 表结构定义
-type BlacklistSubject struct {
-	gorm.Model
-	Exec string `gorm:"column:exec"`
-}
-
-func (BlacklistSubject) TableName() string {
-	return "blacklist_subjects_table"
-}
-
 type BlacklistAction struct {
 	gorm.Model
 	SrcNode      string `gorm:"column:src_node"`
@@ -27,15 +17,26 @@ type BlacklistAction struct {
 	DstNode      string `gorm:"column:dst_node"`
 	DstIndexID   string `gorm:"column:dst_index_id"`
 	TimestampRec int64  `gorm:"column:timestamp_rec"`
-	Flag 	   	 int    `gorm:"column:flag"`
+	Flag         int    `gorm:"column:flag"`
 }
 
 func (BlacklistAction) TableName() string {
 	return "blacklist_actions_table"
 }
 
+// 表结构定义
+type BlacklistSubject struct {
+	gorm.Model
+	Exec string `gorm:"column:exec;uniqueIndex:unique_blacklist_subjects"`
+}
+
+func (BlacklistSubject) TableName() string {
+	return "blacklist_subjects_table"
+}
+
 type BlacklistFile struct {
-	Path string `gorm:"column:path"`
+	gorm.Model
+	Path string `gorm:"column:path;uniqueIndex:unique_blacklist_files"`
 }
 
 func (BlacklistFile) TableName() string {
@@ -44,14 +45,14 @@ func (BlacklistFile) TableName() string {
 
 type BlacklistNetFlow struct {
 	gorm.Model
-	LocalAddr  string `gorm:"column:src_addr"`
-	LocalPort  string `gorm:"column:src_port"`
-	RemoteAddr string `gorm:"column:dst_addr"`
-	RemotePort string `gorm:"column:dst_port"`
+	LocalAddr  string `gorm:"column:src_addr;uniqueIndex:unique_blacklist_net_flows" json:"src_addr"`
+	LocalPort  string `gorm:"column:src_port;uniqueIndex:unique_blacklist_net_flows" json:"src_port"`
+	RemoteAddr string `gorm:"column:dst_addr;uniqueIndex:unique_blacklist_net_flows" json:"dst_addr"`
+	RemotePort string `gorm:"column:dst_port;uniqueIndex:unique_blacklist_net_flows" json:"dst_port"`
 }
 
 func (BlacklistNetFlow) TableName() string {
-	return "Blacklist_net_flows_table"
+	return "blacklist_netflows_table"
 }
 
 // 初始化数据库连接并创建表
