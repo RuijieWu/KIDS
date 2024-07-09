@@ -1,15 +1,20 @@
 import os
 import subprocess
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
+import socket
 
 app = FastAPI()
 
 class DirectoryPaths(BaseModel):
     paths: List[str]
+
+# Global variable to store uptime and directory paths
+start_time = datetime.now()
+watched_paths = []
 
 # Function to format time for ausearch
 def format_time(time):
@@ -33,7 +38,6 @@ def extract_timestamp_nsec(line):
     if 'msg=audit(' in line:
         timestamp_str = line.split('msg=audit(')[1].split(')')[0]
         seconds_str, nano_str = timestamp_str.split(':')
-        # timestamp_dt = datetime.utcfromtimestamp(float(seconds_str))
         timestamp_nsec = int(float(seconds_str) * 1_000_000_000) + int(nano_str)
         return timestamp_nsec
     return None
@@ -141,8 +145,9 @@ def clear_audit_logs():
 
 @app.post("/setup-audit")
 def setup_audit(directories: DirectoryPaths):
-    folder_paths = directories.paths  # Get the folder paths from the request body
-    
+    global watched_paths
+    watched_paths = directories.paths  # Update the global variable with the new paths
+
     # Check if the script is run as root
     if os.geteuid() != 0:
         raise HTTPException(status_code=403, detail="This script must be run as root.")
@@ -154,7 +159,7 @@ def setup_audit(directories: DirectoryPaths):
     restart_auditd_service()
 
     # Add audit rules for each directory
-    for folder in folder_paths:
+    for folder in watched_paths:
         add_file_watch_rule(folder)
     add_socket_audit_rule()
 
@@ -184,6 +189,21 @@ def get_audit_logs(start_time: str, end_time: str):
             results[keyword] = []
 
     return results
+
+@app.get("/info")
+def get_info():
+    uptime = datetime.now() - start_time
+    hostname = socket.gethostname()
+    host_ip = socket.gethostbyname(hostname)
+
+    info = {
+        "status": "alive",
+        "uptime": str(uptime),
+        "paths": watched_paths,
+        "hostname": hostname,
+        "host_ip": host_ip
+    }
+    return info
 
 if __name__ == "__main__":
     import uvicorn

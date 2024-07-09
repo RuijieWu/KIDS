@@ -1,12 +1,11 @@
 package audit_data
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +27,22 @@ type ProxyResponse struct {
 	Message string `json:"message"`
 }
 
+// AgentInfo represents the basic information of an agent
+type AgentInfo struct {
+	Status   string   `json:"status"`
+	Uptime   string   `json:"uptime"`
+	Paths    []string `json:"paths"`
+	Hostname string   `json:"hostname"`
+	HostIP   string   `json:"host_ip"`
+}
+
+// List of agent IPs
+var agentIPs = []string{
+	"localhost:8010",
+	"localhost:8011",
+	"localhost:8012",
+}
+
 func SetupAudit(c *gin.Context) {
 	var directoryPaths DirectoryPaths
 	if err := c.ShouldBindJSON(&directoryPaths); err != nil {
@@ -41,26 +56,49 @@ func SetupAudit(c *gin.Context) {
 		return
 	}
 
-	resp, err := http.Post("http://localhost:8010/setup-audit", "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to the Python service"})
-		return
-	}
-	defer resp.Body.Close()
+	var wg sync.WaitGroup
+	results := make([]ProxyResponse, len(agentIPs))
+	errors := make([]error, len(agentIPs))
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read response from the Python service"})
-		return
+	for i, ip := range agentIPs {
+		wg.Add(1)
+		go func(i int, ip string) {
+			defer wg.Done()
+			agentURL := "http://" + ip + "/setup-audit"
+			resp, err := http.Post(agentURL, "application/json", bytes.NewBuffer(jsonData))
+			if err != nil {
+				errors[i] = err
+				return
+			}
+			defer resp.Body.Close()
+
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				errors[i] = err
+				return
+			}
+
+			var proxyResponse ProxyResponse
+			if err := json.Unmarshal(body, &proxyResponse); err != nil {
+				errors[i] = err
+				return
+			}
+
+			results[i] = proxyResponse
+		}(i, ip)
 	}
 
-	var proxyResponse ProxyResponse
-	if err := json.Unmarshal(body, &proxyResponse); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse response from the Python service"})
-		return
+	wg.Wait()
+
+	// Check for errors
+	for _, err := range errors {
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to communicate with all agents"})
+			return
+		}
 	}
 
-	c.JSON(resp.StatusCode, proxyResponse)
+	c.JSON(http.StatusOK, results)
 }
 
 func GetAuditLogs(c *gin.Context) {
@@ -82,35 +120,102 @@ func GetAuditLogs(c *gin.Context) {
 		return
 	}
 
-	pythonURL := "http://localhost:8010/audit-logs"
-	resp, err := http.Get(pythonURL + "?start_time=" + startTime.Format("2006-01-02T15:04:05") + "&end_time=" + endTime.Format("2006-01-02T15:04:05"))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to the Python service"})
-		return
-	}
-	defer resp.Body.Close()
+	var wg sync.WaitGroup
+	results := make([]map[string]interface{}, len(agentIPs))
+	errors := make([]error, len(agentIPs))
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read response from the Python service"})
-		return
+	for i, ip := range agentIPs {
+		wg.Add(1)
+		go func(i int, ip string) {
+			defer wg.Done()
+			agentURL := "http://" + ip + "/audit-logs"
+			resp, err := http.Get(agentURL + "?start_time=" + startTime.Format("2006-01-02T15:04:05") + "&end_time=" + endTime.Format("2006-01-02T15:04:05"))
+			if err != nil {
+				errors[i] = err
+				return
+			}
+			defer resp.Body.Close()
+
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				errors[i] = err
+				return
+			}
+
+			var result map[string]interface{}
+			if err := json.Unmarshal(body, &result); err != nil {
+				errors[i] = err
+				return
+			}
+
+			results[i] = result
+
+			// parse to type Events struct and insert to database
+			events := Events{}
+			if err := json.Unmarshal(body, &events); err != nil {
+				log.Println("Error: ", err)
+				errors[i] = err
+				return
+			}
+			InsertEvents(events)
+		}(i, ip)
 	}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse response from the Python service"})
-		return
+	wg.Wait()
+
+	// Check for errors
+	for _, err := range errors {
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to communicate with all agents"})
+			return
+		}
 	}
 
-	// parse to type Events struct
-	events := Events{}
-	if err := json.Unmarshal(body, &events); err != nil {
-		log.Println("Error: ", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse response from the Python service"})
-		return
-	}
-	
-	InsertEvents(events)
+	c.JSON(http.StatusOK, results)
+}
 
-	c.JSON(resp.StatusCode, result)
+func GetAgentInfo(c *gin.Context) {
+	var wg sync.WaitGroup
+	results := make([]AgentInfo, len(agentIPs))
+	errors := make([]error, len(agentIPs))
+
+	for i, ip := range agentIPs {
+		wg.Add(1)
+		go func(i int, ip string) {
+			defer wg.Done()
+			infoURL := "http://" + ip + "/info"
+			resp, err := http.Get(infoURL)
+			if err != nil {
+				errors[i] = err
+				return
+			}
+			defer resp.Body.Close()
+
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				errors[i] = err
+				return
+			}
+
+			var agentInfo AgentInfo
+			if err := json.Unmarshal(body, &agentInfo); err != nil {
+				errors[i] = err
+				return
+			}
+
+			results[i] = agentInfo
+		}(i, ip)
+	}
+
+	wg.Wait()
+
+	// Check for errors
+	for _, err := range errors {
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to communicate with all agents"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, results)
 }
