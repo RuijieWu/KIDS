@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func datetimeToNSTimestamp(dtStr string) int64 {
+func DatetimeToNSTimestamp(dtStr string) int64 {
 	// 将字符串解析为 time.Time 对象
 	layout := "2006-01-02 15:04:05"
 	dt, err := time.Parse(layout, dtStr)
@@ -38,8 +38,8 @@ func GetActions(c *gin.Context) {
 	startTimeStr := c.Query("start_time")
 	endTimeStr := c.Query("end_time")
 
-	startTimeUnix := datetimeToNSTimestamp(startTimeStr)
-	endTimeUnix := datetimeToNSTimestamp(endTimeStr)
+	startTimeUnix := DatetimeToNSTimestamp(startTimeStr)
+	endTimeUnix := DatetimeToNSTimestamp(endTimeStr)
 
 	log.Printf("Received actions request with start time: %v, end time: %v\n", startTimeUnix, endTimeUnix)
 
@@ -79,8 +79,8 @@ func GetSubjects(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "5") // 默认 limit 为 5
 
 	// 将时间字符串转换为 Unix 时间戳
-	startTimeUnix := datetimeToNSTimestamp(startTimeStr)
-	endTimeUnix := datetimeToNSTimestamp(endTimeStr)
+	startTimeUnix := DatetimeToNSTimestamp(startTimeStr)
+	endTimeUnix := DatetimeToNSTimestamp(endTimeStr)
 
 	// 解析 limit 参数
 	limit, err := strconv.Atoi(limitStr)
@@ -138,8 +138,8 @@ func GetObjects(c *gin.Context) {
 	endTimeStr := c.Query("end_time")
 	limitStr := c.DefaultQuery("limit", "5") // 默认 limit 为 5
 
-	startTime := datetimeToNSTimestamp(startTimeStr)
-	endTime := datetimeToNSTimestamp(endTimeStr)
+	startTime := DatetimeToNSTimestamp(startTimeStr)
+	endTime := DatetimeToNSTimestamp(endTimeStr)
 
 	// 解析 limit 参数
 	limit, err := strconv.Atoi(limitStr)
@@ -196,8 +196,8 @@ func GetAberrationStatics(c *gin.Context) {
 	startTimeStr := c.Query("start_time")
 	endTimeStr := c.Query("end_time")
 
-	startTimeUnix := datetimeToNSTimestamp(startTimeStr)
-	endTimeUnix := datetimeToNSTimestamp(endTimeStr)
+	startTimeUnix := DatetimeToNSTimestamp(startTimeStr)
+	endTimeUnix := DatetimeToNSTimestamp(endTimeStr)
 
 	var aberrationStatics []AberrationStaticsTable
 
@@ -219,8 +219,8 @@ func GetGraphVisual(c *gin.Context) {
 	startTimeStr := c.Query("start_time")
 	endTimeStr := c.Query("end_time")
 
-	startTime := datetimeToNSTimestamp(startTimeStr)
-	endTime := datetimeToNSTimestamp(endTimeStr)
+	startTime := DatetimeToNSTimestamp(startTimeStr)
+	endTime := DatetimeToNSTimestamp(endTimeStr)
 
 	// 指定的文件夹路径
 	dir := "../../Engine/artifact/graph_visual"
@@ -341,15 +341,15 @@ func parseTimestamp(prefix string) (startTime int64, endTime int64, err error) {
 	// 解析时间戳
 	startTimeStr, endTimeStr := parts[0], parts[1]
 
-	startTime = nsDatetimeToNSTimestamp(startTimeStr)
-	endTime = nsDatetimeToNSTimestamp(endTimeStr)
+	startTime = NsDatetimeToNSTimestamp(startTimeStr)
+	endTime = NsDatetimeToNSTimestamp(endTimeStr)
 
 	log.Printf("Parsed timestamp: %v ~ %v\n", startTime, endTime)
 
 	return startTime, endTime, nil
 }
 
-func nsDatetimeToNSTimestamp(dtStr string) int64 {
+func NsDatetimeToNSTimestamp(dtStr string) int64 {
 	// 将字符串解析为 time.Time 对象
 	layout := "2006-01-02 15:04:05.999999999"
 	dt, err := time.Parse(layout, dtStr)

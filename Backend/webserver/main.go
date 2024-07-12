@@ -4,6 +4,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
+	"KIDS/Blacklist"
 	"KIDS/Kairos"
 	"KIDS/audit_data"
 	"KIDS/open_api_forward"
@@ -12,6 +13,11 @@ import (
 func main() {
 	audit_data.InitDatabaseConnection()
 	Kairos.InitKairosDatabase()
+	Blacklist.InitBlacklistDatabase()
+	Blacklist.InitHiveConnection()
+
+	go Blacklist.Cronjob()
+
 	router := gin.Default()
 
 	// 添加CORS中间件
@@ -25,6 +31,7 @@ func main() {
 
 	router.POST("/data/setup-audit", audit_data.SetupAudit)
 	router.GET("/data/audit-logs", audit_data.GetAuditLogs)
+	router.GET("/data/agent-info", audit_data.GetAgentInfo)
 
 	router.GET("/alarm/message/list", open_api_forward.ForwardMessageListRequest)
 	router.GET("/alarm/alarm/list", open_api_forward.ForwardAlarmListRequest)
@@ -38,5 +45,11 @@ func main() {
 	router.GET("/kairos/aberration-statics", Kairos.GetAberrationStatics)
 	router.GET("/kairos/graph-visual", Kairos.GetGraphVisual)
 
+	router.POST("/blacklist/set-blacklist", Blacklist.SetBlackList)
+	router.GET("/blacklist/get-blacklist", Blacklist.GetBlackList)
+
 	router.Run(":8080")
+
+	// Block forever
+	select {}
 }
