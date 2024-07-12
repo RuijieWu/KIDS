@@ -14,6 +14,7 @@ func main() {
 	audit_data.InitDatabaseConnection()
 	Kairos.InitKairosDatabase()
 	Blacklist.InitBlacklistDatabase()
+	Blacklist.InitHiveConnection()
 
 	go Blacklist.Cronjob()
 
@@ -30,6 +31,7 @@ func main() {
 
 	router.POST("/data/setup-audit", audit_data.SetupAudit)
 	router.GET("/data/audit-logs", audit_data.GetAuditLogs)
+	router.GET("/data/agent-info", audit_data.GetAgentInfo)
 
 	router.GET("/alarm/message/list", open_api_forward.ForwardMessageListRequest)
 	router.GET("/alarm/alarm/list", open_api_forward.ForwardAlarmListRequest)

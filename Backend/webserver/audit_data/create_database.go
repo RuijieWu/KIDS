@@ -3,7 +3,6 @@ package audit_data
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"log"
 	"strconv"
 
@@ -16,7 +15,7 @@ import (
 var DB *gorm.DB
 
 func InitDatabaseConnection() {
-	dsn := "host=/var/run/postgresql/ user=postgres password=postgres dbname=tc_cadet_dataset_db port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	dsn := "host=/var/run/postgresql/ user=postgres password=postgres dbname=tc_cadet_dataset_db port=5432 sslmode=disable TimeZone=Asia/Shanghai client_encoding=UTF8"
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -27,10 +26,12 @@ func InitDatabaseConnection() {
 	// AutoMigrate will create the tables, adding missing columns and indexes
 	if err := DB.AutoMigrate(&NetFlowNode{}, &SubjectNode{}, &FileNode{}, &NodeID{}, &Event{}); err != nil {
 		log.Printf("Failed to migrate database: %v", err)
-        // Perform manual migration
-        manualMigration()
+		// Perform manual migration
+		manualMigration()
 		log.Fatal("failed to migrate database")
 	}
+
+	log.Println("Database initialized successfully")
 }
 
 func manualMigration() {
@@ -39,7 +40,7 @@ func manualMigration() {
 		log.Printf("Failed to create table node2id: %v", err)
 		log.Fatal("failed to create table node2id")
 	}
-	
+
 	// Create the table if it doesn't exist
 	if err := DB.Exec("CREATE TABLE IF NOT EXISTS event_table (id SERIAL PRIMARY KEY, src_node TEXT NOT NULL, src_index_id TEXT NOT NULL, operation TEXT NOT NULL, dst_node TEXT NOT NULL, dst_index_id TEXT NOT NULL, timestamp_rec BIGINT NOT NULL)").Error; err != nil {
 		log.Printf("Failed to create table event_table: %v", err)
@@ -54,13 +55,13 @@ func manualMigration() {
 
 	// Create the table if it doesn't exist
 	if err := DB.Exec("CREATE TABLE IF NOT EXISTS subject_node_table (id SERIAL PRIMARY KEY, node_uuid TEXT NOT NULL, hash_id TEXT NOT NULL, exec TEXT NOT NULL)").Error; err != nil {
-		log.Println(fmt.Sprintf("Failed to create table subject_node_table: %v", err))
+		log.Printf("Failed to create table subject_node_table: %v", err)
 		log.Fatal("failed to create table subject_node_table")
 	}
 
 	// Create the table if it doesn't exist
 	if err := DB.Exec("CREATE TABLE IF NOT EXISTS file_node_table (id SERIAL PRIMARY KEY, node_uuid TEXT NOT NULL, hash_id TEXT NOT NULL, path TEXT NOT NULL)").Error; err != nil {
-		log.Println(fmt.Sprintf("Failed to create table file_node_table: %v", err))
+		log.Printf("Failed to create table file_node_table: %v", err)
 		log.Fatal("failed to create table file_node_table")
 	}
 }

@@ -1,6 +1,7 @@
 package audit_data
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"log"
@@ -39,8 +40,8 @@ type AgentInfo struct {
 // List of agent IPs
 var agentIPs = []string{
 	"localhost:8010",
-	"localhost:8011",
-	"localhost:8012",
+	"localhost:8020",
+	"localhost:8030",
 }
 
 func SetupAudit(c *gin.Context) {
@@ -67,6 +68,7 @@ func SetupAudit(c *gin.Context) {
 			agentURL := "http://" + ip + "/setup-audit"
 			resp, err := http.Post(agentURL, "application/json", bytes.NewBuffer(jsonData))
 			if err != nil {
+				results[i] = ProxyResponse{Message: "dead"}
 				errors[i] = err
 				return
 			}
@@ -74,12 +76,14 @@ func SetupAudit(c *gin.Context) {
 
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
+				results[i] = ProxyResponse{Message: "dead"}
 				errors[i] = err
 				return
 			}
 
 			var proxyResponse ProxyResponse
 			if err := json.Unmarshal(body, &proxyResponse); err != nil {
+				results[i] = ProxyResponse{Message: "dead"}
 				errors[i] = err
 				return
 			}
@@ -93,8 +97,7 @@ func SetupAudit(c *gin.Context) {
 	// Check for errors
 	for _, err := range errors {
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to communicate with all agents"})
-			return
+			log.Println("Error:", err)
 		}
 	}
 
@@ -131,6 +134,7 @@ func GetAuditLogs(c *gin.Context) {
 			agentURL := "http://" + ip + "/audit-logs"
 			resp, err := http.Get(agentURL + "?start_time=" + startTime.Format("2006-01-02T15:04:05") + "&end_time=" + endTime.Format("2006-01-02T15:04:05"))
 			if err != nil {
+				results[i] = map[string]interface{}{"status": "dead"}
 				errors[i] = err
 				return
 			}
@@ -138,12 +142,14 @@ func GetAuditLogs(c *gin.Context) {
 
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
+				results[i] = map[string]interface{}{"status": "dead"}
 				errors[i] = err
 				return
 			}
 
 			var result map[string]interface{}
 			if err := json.Unmarshal(body, &result); err != nil {
+				results[i] = map[string]interface{}{"status": "dead"}
 				errors[i] = err
 				return
 			}
@@ -153,7 +159,7 @@ func GetAuditLogs(c *gin.Context) {
 			// parse to type Events struct and insert to database
 			events := Events{}
 			if err := json.Unmarshal(body, &events); err != nil {
-				log.Println("Error: ", err)
+				log.Println("Error:", err)
 				errors[i] = err
 				return
 			}
@@ -166,8 +172,7 @@ func GetAuditLogs(c *gin.Context) {
 	// Check for errors
 	for _, err := range errors {
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to communicate with all agents"})
-			return
+			log.Println("Error:", err)
 		}
 	}
 
@@ -186,6 +191,7 @@ func GetAgentInfo(c *gin.Context) {
 			infoURL := "http://" + ip + "/info"
 			resp, err := http.Get(infoURL)
 			if err != nil {
+				results[i] = AgentInfo{Status: "dead"}
 				errors[i] = err
 				return
 			}
@@ -193,12 +199,14 @@ func GetAgentInfo(c *gin.Context) {
 
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
+				results[i] = AgentInfo{Status: "dead"}
 				errors[i] = err
 				return
 			}
 
 			var agentInfo AgentInfo
 			if err := json.Unmarshal(body, &agentInfo); err != nil {
+				results[i] = AgentInfo{Status: "dead"}
 				errors[i] = err
 				return
 			}
@@ -212,8 +220,7 @@ func GetAgentInfo(c *gin.Context) {
 	// Check for errors
 	for _, err := range errors {
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to communicate with all agents"})
-			return
+			log.Println("Error:", err)
 		}
 	}
 

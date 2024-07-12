@@ -1,6 +1,7 @@
 package Blacklist
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,6 +22,9 @@ func init() {
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
+
+	// 初始化 Hive 连接
+	InitHiveConnection()
 }
 
 func Cronjob() {
@@ -63,92 +67,117 @@ func processAuditLogs() {
 		return
 	}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
+	var events audit_data.Events
+	if err := json.Unmarshal(body, &events); err != nil {
 		log.Printf("Failed to parse response from the Python service: %v", err)
 		return
 	}
 
-	// Parse to type Events struct
-	var events audit_data.Events
-	if err := json.Unmarshal(body, &events); err != nil {
-		log.Printf("Failed to parse events from the response: %v", err)
-		return
-	}
-
-	// Filter and insert events
+	// 插入事件到 PostgreSQL
 	audit_data.InsertEvents(events)
+
+	// 将数据迁移到 Hive
+	migrateDataToHive(fmt.Sprintf("%d", startTimeUnix), fmt.Sprintf("%d", endTimeUnix))
+
+	// 插入黑名单动作到 Hive 和 PostgreSQL
 	InsertBlacklistActions(fmt.Sprintf("%d", startTimeUnix), fmt.Sprintf("%d", endTimeUnix))
 }
 
-// check the events in past 10 seconds and insert the blacklisted actions. set the flag to 0
-func InsertBlacklistActions(startTimeUnix string, endTimeUnix string) {
-	var actions []audit_data.Event
+func migrateDataToHive(startTimeUnix string, endTimeUnix string) {
+	ctx := context.Background()
+	cursor := hiveConn.Cursor()
 
+	var actions []audit_data.Event
 	DB.Where("timestamp_rec >= ? AND timestamp_rec <= ?", startTimeUnix, endTimeUnix).Find(&actions)
+
 	for _, action := range actions {
-		// if the action's subject or object is in the blacklist, insert the action
-		if subject, subjectType, ok := IsBlacklisted(action.SrcNode); ok {
-			DB.Create(&BlacklistAction{
-				TargetName:   subject,
-				TargetType:   subjectType,
-				TimestampRec: action.TimestampRec,
-				Flag:         0,
-			})
-		}
-		if object, objectType, ok := IsBlacklisted(action.DstNode); ok {
-			DB.Create(&BlacklistAction{
-				TargetName:   object,
-				TargetType:   objectType,
-				TimestampRec: action.TimestampRec,
-				Flag:         0,
-			})
+		query := fmt.Sprintf("INSERT INTO audit_data_event (src_node, dst_node, timestamp_rec) VALUES ('%s', '%s', %d)", action.SrcNode, action.DstNode, action.TimestampRec)
+		cursor.Exec(ctx, query)
+		if cursor.Err != nil {
+			log.Printf("Failed to insert into audit_data_event: %v", cursor.Err)
 		}
 	}
 }
 
-// check if the node is in the blacklist
-// first get the uuid and search for it in audit_data's nodes; then search for the node in the blacklist
-func IsBlacklisted(node string) (string, string, bool) {
-	// search for the node in the audit_data's node2uuid
-	var node2uuid audit_data.NodeID
-	DB.Where("hash_id = ?", node).First(&node2uuid)
+func InsertBlacklistActions(startTimeUnix string, endTimeUnix string) {
+	migrateDataToHive(startTimeUnix, endTimeUnix)
 
-	if node2uuid.Type == "netflow" {
-		var orignNode audit_data.NetFlowNode
-		DB.Where("hash_id = ?", node2uuid.Hash).First(&orignNode)
-		var blackNode BlacklistNetFlow
-		DB.Where("src_addr = ? AND src_port = ? AND dst_addr = ? AND dst_port = ?", orignNode.LocalAddr, orignNode.LocalPort, orignNode.RemoteAddr, orignNode.RemotePort).First(&blackNode)
-		if blackNode.ID != 0 {
-			return fmt.Sprintf("%s:%s -> %s:%s", orignNode.LocalAddr, orignNode.LocalPort, orignNode.RemoteAddr, orignNode.RemotePort), "netflow", true
-		} else {
-			return "", "", false
+	ctx := context.Background()
+	cursor := hiveConn.Cursor()
+
+	query := `
+		SELECT e.src_node, e.dst_node, e.timestamp_rec
+		FROM audit_data_event e
+		LEFT JOIN blacklist_netflows_table bnet ON e.src_node = bnet.src_addr
+		LEFT JOIN blacklist_subjects_table bsub ON e.src_node = bsub.exec
+		LEFT JOIN blacklist_files_table bfile ON e.src_node = bfile.path
+		WHERE bnet.src_addr IS NOT NULL OR bsub.exec IS NOT NULL OR bfile.path IS NOT NULL
+		UNION
+		SELECT e.src_node, e.dst_node, e.timestamp_rec
+		FROM audit_data_event e
+		LEFT JOIN blacklist_netflows_table bnet ON e.dst_node = bnet.src_addr
+		LEFT JOIN blacklist_subjects_table bsub ON e.dst_node = bsub.exec
+		LEFT JOIN blacklist_files_table bfile ON e.dst_node = bfile.path
+		WHERE bnet.src_addr IS NOT NULL OR bsub.exec IS NOT NULL OR bfile.path IS NOT NULL
+	`
+
+	// 执行查询
+	cursor.Exec(ctx, query)
+	if cursor.Err != nil {
+		log.Fatalf("Failed to query Hive: %v", cursor.Err)
+	}
+	defer cursor.Close()
+
+	var srcNode, dstNode string
+	var timestampRec int64
+
+	for cursor.HasMore(ctx) {
+		if cursor.Err != nil {
+			log.Printf("Failed to iterate over rows: %v", cursor.Err)
+			continue
+		}
+
+		cursor.FetchOne(ctx, &srcNode, &dstNode, &timestampRec)
+		if cursor.Err != nil {
+			log.Printf("Failed to fetch row: %v", cursor.Err)
+			continue
+		}
+
+		// 在 PostgreSQL 中插入结果
+		if srcNode != "" {
+			err := DB.Create(&BlacklistAction{
+				TargetName:   srcNode,
+				TargetType:   "src_node",
+				TimestampRec: timestampRec,
+				Flag:         0,
+			}).Error
+			if err != nil {
+				log.Printf("Failed to insert into PostgreSQL: %v", err)
+			}
+			query := fmt.Sprintf("INSERT INTO blacklist_actions_table (target_name, target_type, timestamp_rec, flag) VALUES ('%s', 'src_node', %d, 0)", srcNode, timestampRec)
+			cursor.Exec(ctx, query)
+			if cursor.Err != nil {
+				log.Printf("Failed to insert into Hive: %v", cursor.Err)
+			}
+		}
+		if dstNode != "" {
+			err := DB.Create(&BlacklistAction{
+				TargetName:   dstNode,
+				TargetType:   "dst_node",
+				TimestampRec: timestampRec,
+				Flag:         0,
+			}).Error
+			if err != nil {
+				log.Printf("Failed to insert into PostgreSQL: %v", err)
+			}
+			query := fmt.Sprintf("INSERT INTO blacklist_actions_table (target_name, target_type, timestamp_rec, flag) VALUES ('%s', 'dst_node', %d, 0)", dstNode, timestampRec)
+			cursor.Exec(ctx, query)
+			if cursor.Err != nil {
+				log.Printf("Failed to insert into Hive: %v", cursor.Err)
+			}
 		}
 	}
 
-	if node2uuid.Type == "subject" {
-		var orignNode audit_data.SubjectNode
-		DB.Where("hash_id = ?", node2uuid.Hash).First(&orignNode)
-		var blackNode BlacklistSubject
-		DB.Where("exec = ?", orignNode.Exec).First(&blackNode)
-		if blackNode.ID != 0 {
-			return orignNode.Exec, "subject", true
-		} else {
-			return "", "", false
-		}
-	}
-
-	if node2uuid.Type == "file" {
-		var orignNode audit_data.FileNode
-		DB.Where("hash_id = ?", node2uuid.Hash).First(&orignNode)
-		var blackNode BlacklistFile
-		DB.Where("path = ?", orignNode.Path).First(&blackNode)
-		if blackNode.ID != 0 {
-			return orignNode.Path, "file", true
-		} else {
-			return "", "", false
-		}
-	}
-
-	return "", "", false
+	cursor.Close()
+	hiveConn.Close()
 }
