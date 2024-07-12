@@ -1,0 +1,15 @@
+{
+    "data": [
+        {
+            "anomalous_action_count": 0,
+            "anomalous_object_count": 0,
+            "anomalous_subject_count": 0,
+            "dangerous_action_count": 0,
+            "dangerous_object_count": 0,
+            "dangerous_subject_count": 0,
+            "file_content":0 ,
+            "file_name": "2018-04-03 091914.573093723~2018-04-03 091914.843095846_6.png"
+        }
+    ],
+    "total": 1
+}
