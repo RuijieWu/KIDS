@@ -27,43 +27,6 @@ import gc
 
 from config import *
 
-def path2higlist(p):
-    l=[]
-    spl=p.strip().split('/')
-    for i in spl:
-        if len(l)!=0:
-            l.append(l[-1]+'/'+i)
-        else:
-            l.append(i)
-    return l
-
-def list2str(l):
-    return ''.join(l)
-
-def gen_relation_onehot():
-    relvec=torch.nn.functional.one_hot(
-        torch.arange(0, len(REL2ID.keys())//2), 
-        num_classes=len(REL2ID.keys())//2
-    )
-    rel2vec={}
-    for i in REL2ID.keys():
-        if type(i) is not int:
-            rel2vec[i]= relvec[REL2ID[i]-1]
-            rel2vec[relvec[REL2ID[i]-1]]=i
-    #! torch.save(rel2vec, ARTIFACT_DIR + "rel2vec")
-    return rel2vec
-
-
-def ip2higlist(p):
-    l=[]
-    spl=p.strip().split('.')
-    for i in spl:
-        if len(l)!=0:
-            l.append(l[-1]+'.'+i)
-        else:
-            l.append(i)
-    return l
-
 def ns_time_to_datetime(ns):
     """
     :param ns: int nano timestamp
@@ -111,13 +74,28 @@ def datetime_to_ns_time_US(date):
     :param date: str   format: %Y-%m-%d %H:%M:%S   e.g. 2013-10-10 23:40:00
     :return: nano timestamp
     """
+    date , ns_sec = date.split('.')
     tz = pytz.timezone('US/Eastern')
     timeArray = time.strptime(date, "%Y-%m-%d %H:%M:%S")
     dt = datetime.fromtimestamp(mktime(timeArray))
     timestamp = tz.localize(dt)
     timestamp = timestamp.timestamp()
-    timeStamp = timestamp * 1000000000
+    timeStamp = timestamp * 1000000000 + int(ns_sec)
     return int(timeStamp)
+
+
+#def datetime_to_ns_time_US(date):
+#    """
+#    :param date: str   format: %Y-%m-%d %H:%M:%S   e.g. 2013-10-10 23:40:00
+#    :return: nano timestamp
+#    """
+#    tz = pytz.timezone('US/Eastern')
+#    timeArray = time.strptime(date, "%Y-%m-%d %H:%M:%S")
+#    dt = datetime.fromtimestamp(mktime(timeArray))
+#    timestamp = tz.localize(dt)
+#    timestamp = timestamp.timestamp()
+#    timeStamp = timestamp * 1000000000
+#    return int(timeStamp)
 
 def datetime_to_timestamp_US(date):
     """
@@ -192,6 +170,17 @@ def hashgen(l):
 #################################################
 #* embedder
 
+def get_events(cur,begin_time,end_time):
+    sql = """
+    select * from event_table
+    where
+          timestamp_rec>'%s' and timestamp_rec<'%s'
+           ORDER BY timestamp_rec;
+    """ % (begin_time, end_time)
+    cur.execute(sql)
+    events = cur.fetchall()
+    return events
+
 def path2higlist(p):
     l=[]
     spl=p.strip().split('/')
@@ -219,10 +208,87 @@ def list2str(l):
 #################################################
 #* investigator
 
+def get_attack_list(cur,begin_time,end_time):
+    '''
+    get_attack_list
+    '''
+    attack_list = ATTACK_LIST[DETECTION_LEVEL]
+    if not attack_list:
+    #*attack_list = os.listdir(f"{ARTIFACT_DIR}/graph_list")
+
+    #* for file in os.listdir(f"{ARTIFACT_DIR}/graph_list"):
+    #*    attack_list.append(f"{ARTIFACT_DIR}/graph_list/{file}")
+        attack_list = {}
+        sql = """
+        select * from aberration_statics_table;
+        """
+        cur.execute(sql)
+        results = cur.fetchall()
+        for result in results:
+            if result[2] > MIN_AVG_LOSS and result[2] < MAX_AVG_LOSS and \
+                result[0] > begin_time and result[1] < end_time:
+                attack_list[
+                    f"{ns_time_to_datetime_US(result[0])}~{ns_time_to_datetime_US(result[1])}.txt\n"
+                ] = 1
+        attack_list = attack_list.keys()
+    return attack_list
+
 def replace_path_name(path_name):
     for i in REPLACE_DICT[DETECTION_LEVEL]:
         if i in path_name:
             return REPLACE_DICT[DETECTION_LEVEL][i]
     return path_name
 
+def save_dangerous_actions(cur,connect,dangerous_action_list):
+    sql = '''insert into dangerous_actions_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, dangerous_action_list, page_size=10000)
+    connect.commit()
+
+def save_dangerous_subjects(cur,connect,dangerous_subjects):
+    sql = '''insert into dangerous_subjects_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, dangerous_subjects, page_size=10000)
+    connect.commit()
+
+def save_dangerous_objects(cur,connect,dangerous_objects):
+    sql = '''insert into dangerous_objects_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, dangerous_objects, page_size=10000)
+    connect.commit()
+
+def save_anomalous_actions(cur,connect,anomalous_actions):
+    sql = '''insert into anomalous_actions_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, anomalous_actions, page_size=10000)
+    connect.commit()
+
+def save_anomalous_subjects(cur,connect,anomalous_subjects):
+    sql = '''insert into anomalous_subjects_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, anomalous_subjects, page_size=10000)
+    connect.commit()
+
+def save_anomalous_objects(cur,connect,anomalous_objects):
+    sql = '''insert into anomalous_objects_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, anomalous_objects, page_size=10000)
+    connect.commit()
+
+def save_aberration_statics(
+    cur,
+    connect,
+    aberration_statics
+):
+    sql = '''insert into aberration_statics_table
+                         values %s
+            '''
+    ex.execute_values(cur, sql, aberration_statics, page_size=10000)
+    connect.commit()
 #################################################

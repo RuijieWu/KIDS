@@ -1,14 +1,13 @@
 import os
+import sys
 import time
 import torch
 import numpy as np
 from sklearn.feature_extraction import FeatureHasher
 from torch_geometric.data import *
 from tqdm import tqdm
-from graphviz import Digraph
-import networkx as nx
-import community.community_louvain as community_louvain
 
+from analyser import *
 from model import *
 from config import *
 from utils import *
@@ -20,9 +19,6 @@ from investigator import *
 #* max_node_num = 268243  #! the number of nodes in node2id table +1
 #* min_dst_idx, max_dst_idx = 0, max_node_num
 #* assoc = torch.empty(max_node_num, dtype=torch.long, device=device)
-abnormal_output = open("./anormaly.txt","w",encoding="utf-8")
-dangerous_output = open("./dangerous.txt","w",encoding="utf-8")
-logger = open("./aberration_investigation.txt","a",encoding="utf-8")
 
 @torch.no_grad()
 def test(
@@ -40,15 +36,11 @@ def test(
     2. 逐批次遍历推理数据，计算并记录损失值
     返回时间窗口内的损失情况
     '''
-    if os.path.exists(path):
-        pass
-    else:
-        os.mkdir(path)
-    
-    logger = open("./analysis.txt","a",encoding="utf-8")
-    logger.write(f"[*] Analysis at {time.ctime()}\n")
-    ###? Init
-    print("[*] Analysis Initializing")
+    os.system(f"mkdir -p {path}")
+
+    logger = open("./tests.txt","a",encoding="utf-8")
+    logger.write(f"[*] Test at {time.ctime()}\n")
+
     memory.eval()
     gnn.eval()
     link_pred.eval()
@@ -66,22 +58,11 @@ def test(
     start_time = inference_data.t[0]
     event_count = 0
     pos_o = []
-    ###?
 
     # Record the running time to evaluate the performance
-    print("[*] Analyse Begin")
     start = time.perf_counter()
-    
-    for batch in inference_data.seq_batches(batch_size=BATCH):
 
-        #*    dataset.src = torch.tensor(src)
-        #*    dataset.dst = torch.tensor(dst)
-        #*    dataset.t = torch.tensor(t)
-        #*    dataset.msg = torch.vstack(msg)
-        #*    dataset.src = dataset.src.to(torch.long)
-        #*    dataset.dst = dataset.dst.to(torch.long)
-        #*    dataset.msg = dataset.msg.to(torch.float)
-        #*    dataset.t = dataset.t.to(torch.long)
+    for batch in inference_data.seq_batches(batch_size=BATCH):
 
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
         unique_nodes = torch.cat([unique_nodes, src, pos_dst]).unique()
@@ -108,13 +89,11 @@ def test(
         loss = criterion(y_pred, y_true)
         total_loss += float(loss) * batch.num_events
 
-        # update the edges in the batch to the memory and neighbor_loader
         memory.update_state(src, pos_dst, t, msg)
         neighbor_loader.insert(src, pos_dst)
 
-        # compute the loss for each edge
         each_edge_loss = cal_pos_edges_loss_multiclass(pos_out, y_true)
-        
+
         for i in range(len(pos_out)):
             srcnode = int(src[i])
             dstnode = int(pos_dst[i])
@@ -123,7 +102,7 @@ def test(
             dstmsg = str(nodeid2msg[dstnode])
             t_var = int(t[i])
             edgeindex = tensor_find(msg[i][NODE_EMBEDDING_DIM:-NODE_EMBEDDING_DIM], 1)
-            edge_type = REL2ID[edgeindex]
+            edge_type = REL2ID[DETECTION_LEVEL][edgeindex]
             loss = each_edge_loss[i]
 
             temp_dic = {}
@@ -139,7 +118,6 @@ def test(
 
         event_count += len(batch.src)
         if t[-1] > start_time + TIME_WINDOW_SIZE:
-            # Here is a checkpoint, which records all edge losses in the current time window
             time_interval = ns_time_to_datetime_US(start_time) + "~" + ns_time_to_datetime_US(t[-1])
             end = time.perf_counter()
             time_with_loss[time_interval] = {
@@ -170,54 +148,40 @@ def test(
 
     return time_with_loss
 
-def listen():
-    cur, _ = init_database_connection()
-    events=[]
-    #! range(2,14)
-    for day in tqdm(range(7, 8)):
-        start_timestamp = datetime_to_ns_time_US('2018-04-' + str(day) + ' 00:00:00')
-        end_timestamp = datetime_to_ns_time_US('2018-04-' + str(day + 1) + ' 00:00:00')
-        sql = """
-        select * from event_table
-        where
-              timestamp_rec>'%s' and timestamp_rec<'%s'
-               ORDER BY timestamp_rec;
-        """ % (start_timestamp, end_timestamp)
-        cur.execute(sql)
-        events += cur.fetchall()
-    return events
-
-def load_data():
+def load_data(cur,begin_time,end_time):
     '''
     initialize and load data
     '''
-    #* Embedding
     print("[*] Loading Data")
-    cur, _ = init_database_connection()
-    print("[*] Loading rel2vec")
-    rel2vec = gen_relation_onehot()
-    print("[*] Loading node2higvec")
-    node2higvec = gen_feature(cur=cur)
-    #* rel2vec = torch.load(ARTIFACT_DIR + "rel2vec")
-    #* node2higvec = torch.load(ARTIFACT_DIR + "node2higvec")
-    print("[*] Loading Events")
-    #* events = listen()
-    print("[*] Loading graph")
-    #? 会提示 RuntimeError: vstack expects a non-empty TensorList
-    #* graph = gen_vectorized_graphs(events, node2higvec=node2higvec, rel2vec=rel2vec)
-    #* graph = torch.load("./artifact/graph_4_7.TemporalData.simple").to(device=device)
-    graphs = gen_vectorized_graphs(cur=cur, node2higvec=node2higvec, rel2vec=rel2vec)
-    
-    #* test
+
     print("[*] Loading nodeid2msg")
     nodeid2msg = gen_nodeid2msg(cur=cur)
+
+    print("[*] Loading rel2vec")
+    rel2vec = gen_relation_onehot()
+    #* rel2vec = torch.load(ARTIFACT_DIR + "rel2vec")
+
+    print("[*] Loading node2higvec")
+    node2higvec = gen_feature(nodeid2msg)
+    #* node2higvec = torch.load(ARTIFACT_DIR + "node2higvec")
+
+    print("[*] Loading graphs")
+    graphs = gen_vectorized_graphs(
+        cur=cur,
+        node2higvec=node2higvec,
+        rel2vec=rel2vec,
+        begin_time=begin_time,
+        end_time=end_time
+    )
+    #* graph = torch.load("./artifact/graph_7.TemporalData.simple").to(device=device)
+
     print("[*] Loading model")
+    memory, gnn, link_pred, neighbor_loader = torch.load(MODELS_PATH,map_location=device)
     #* memory, gnn, link_pred, neighbor_loader = torch.load(f"{MODELS_DIR}/models.pt",map_location=device)
-    memory, gnn, link_pred, neighbor_loader = torch.load(f"{MODELS_DIR}cadets3_models.pt",map_location=device)
 
     return graphs, memory, gnn, link_pred, neighbor_loader, nodeid2msg
 
-def analyse(
+def test_data(
     graphs,
     memory,
     gnn,
@@ -225,8 +189,9 @@ def analyse(
     neighbor_loader,
     nodeid2msg
 ):
-    print("[*] Analysing Data")
-    for graph in graphs:
+    print("[*] Testing Data")
+    #* loss_list = []
+    for graph in tqdm(graphs):
         loss = test(
             inference_data=graph,
             memory=memory,
@@ -236,85 +201,128 @@ def analyse(
             nodeid2msg=nodeid2msg,
             path=ARTIFACT_DIR + "graph_list"
         )
+        #* loss_list.append(loss)
+    #* return loss_list
 
-def attack_investigate():
-    print("Investigating Attacks")
-    gg, communities, partition = community_discover()
-    # Plot and render candidate subgraph
-    os.system(f"mkdir -p {ARTIFACT_DIR}/graph_visual/")
-    graph_index = 0
-    for c in communities:
-        dot = Digraph(name="MyPicture", comment="the test", format="pdf")
-        dot.graph_attr['rankdir'] = 'LR'
-        for e in communities[c].edges:
-            try:
-                temp_edge = gg.edges[e]
-                #* srcnode = e['srcnode']
-                #* dstnode = e['dstnode']
-            except Exception as _:
-                return
-            if "'subject': '" in temp_edge['srcmsg']:
-                src_shape = 'box'
-            elif "'file': '" in temp_edge['srcmsg']:
-                src_shape = 'oval'
-            elif "'netflow': '" in temp_edge['srcmsg']:
-                src_shape = 'diamond'
-            else:
-                src_shape = DEFAULT_SHAPE
-            if attack_edge_flag(temp_edge['srcmsg']):
-                src_node_color = 'red'
-            else:
-                src_node_color = 'blue'
-            dot.node(name=str(hashgen(replace_path_name(temp_edge['srcmsg']))), label=str(
-                replace_path_name(temp_edge['srcmsg']) + str(
-                    partition[str(hashgen(replace_path_name(temp_edge['srcmsg'])))])), color=src_node_color,
-                    shape=src_shape)
+def arg_parse(args: list[str]):
+    try:
+        if args[1] in ("--help","-h"):
+            print(HELP_MSG)
+        elif args[1] == "init":
+            dataset_path = "./"
+            dataset = "CADETS-E3"
+            for index,arg in enumerate(args):
+                if arg.lower() in ("-path","--path"):
+                    if args[index+1][-1] == "/":
+                        dataset_path = args[index+1]
+                    else:
+                        dataset_path = args[index+1][:-1]
+                if arg.lower() in ("-dataset","--dataset"):
+                    if args[index+1] in ("CADETS-E3","CADETS-E5","CADETS-TC"):
+                        dataset = args[index+1]
+                    else:
+                        return False, "error", "[*] Dataset Format provided is not allowed"
+            return "init",dataset_path,dataset
+        elif args[1] in ("run","investigate","analyse"):
+            begin_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+            end_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+            for index,arg in enumerate(args):
+                if arg.lower() in ("-begin","--begin"):
+                    begin_time = f"{args[index+1]} 00:00:00"
+                    try:
+                        if ":" in args[index+2]:
+                            begin_time = f"{args[index+1]} {args[index+2]}"
+                    except IndexError:
+                        pass
+                if arg.lower() in ("-end","--end"):
+                    end_time = f"{args[index+1]} 00:00:00"
+                    try:
+                        if ":" in args[index+2]:
+                            end_time = f"{args[index+1]} {args[index+2]}"
+                    except IndexError:
+                        pass
+            return args[1],begin_time,end_time
+        else:
+            return False, "error", "[*] Wrong Arguments!"
+    except IndexError:
+        return False, "error", "[*] Wrong Arguments!"
 
-                # destination node
-            if "'subject': '" in temp_edge['dstmsg']:
-                dst_shape = 'box'
-            elif "'file': '" in temp_edge['dstmsg']:
-                dst_shape = 'oval'
-            elif "'netflow': '" in temp_edge['dstmsg']:
-                dst_shape = 'diamond'
-            else:
-                dst_shape = DEFAULT_SHAPE
-            if attack_edge_flag(temp_edge['dstmsg']):
-                dst_node_color = 'red'
-            else:
-                dst_node_color = 'blue'
-            dot.node(name=str(hashgen(replace_path_name(temp_edge['dstmsg']))), label=str(
-                replace_path_name(temp_edge['dstmsg']) + str(
-                    partition[str(hashgen(replace_path_name(temp_edge['dstmsg'])))])), color=dst_node_color,
-                    shape=dst_shape)
-
-            if attack_edge_flag(temp_edge['srcmsg']) and attack_edge_flag(temp_edge['dstmsg']):
-                edge_color = 'red'
-            else:
-                edge_color = 'blue'
-            dot.edge(str(hashgen(replace_path_name(temp_edge['srcmsg']))),
-                    str(hashgen(replace_path_name(temp_edge['dstmsg']))), label=temp_edge['edge_type'],
-                    color=edge_color)
-
-        dot.render(f'{ARTIFACT_DIR}/graph_visual/subgraph_' + str(graph_index), view=False)
-        graph_index += 1
-
-def aberration_investigate(recoding = False):
-    print("Investigating Aberration")
-    node_IDF, tw_list = compute_IDF()
-    history_list = anomalous_queue_construction(
-        node_IDF=node_IDF,
-        tw_list=tw_list,
-        graph_dir_path=f"{ARTIFACT_DIR}/graph_list/"
-    )
-    if recoding:
-        torch.save(history_list, f"{ARTIFACT_DIR}/graph_history_list")
+def init():
+    cur , connect = init_database_connection()
+    cur.execute(DROP_TABLES)
+    connect.commit()
+    cur.execute(CREATE_PLUGIN)
+    connect.commit()
+    cur.execute(CREATE_EVENT_TABLE)
+    connect.commit()
+    cur.execute(CREATE_FILE_NODE_TABLE)
+    connect.commit()
+    cur.execute(CREATE_NETFLOW_NODE_TABLE)
+    connect.commit()
+    cur.execute(CREATE_SUBJECT_NODE_TABLE)
+    connect.commit()
+    cur.execute(CREATE_NODE2ID)
+    connect.commit()
+    cur.execute(CREATE_ABERRATION_STATICS_TABLE)
+    connect.commit()
+    cur.execute(CREATE_SUBJECTS_TABLE)
+    connect.commit()
+    cur.execute(CREATE_ACTIONS_TABLE)
+    connect.commit()
+    cur.execute(CREATE_OBJECTS_TABLE)
+    connect.commit()
 
 def main():
-    #* graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data()
-    #* analyse(graph,memory,gnn,link_pred,neighbor_loader,nodeid2msg)
-    aberration_investigate()
-    attack_investigate()
+    '''
+    Entrance of this Engine
+    '''
+    arguments = arg_parse(sys.argv)
+    try:
+        if not arguments[0]:
+            print(arguments[2])
+            sys.exit(1)
+        elif arguments[0] == "init":
+            init()
+            sys.exit(0)
+        else:
+            begin_time = arguments[1]
+            end_time = arguments[2]
+            begin_timestamp = datetime_to_ns_time_US(begin_time+".000000000")
+            end_timestamp = datetime_to_ns_time_US(end_time+".000000000")
+            cur, connect = init_database_connection()
+            if arguments[0] in ("run","analyse"):
+                graphs,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data(
+                cur=cur,
+                begin_time=begin_timestamp,
+                end_time=end_timestamp
+                )
+            #* loss_list = test_data()
+            #*    test_data(
+             #*       graphs=graphs,
+              #*      memory=memory,
+               #*     gnn=gnn,
+                #*    link_pred=link_pred,
+                 #*   neighbor_loader=neighbor_loader,
+                  #*  nodeid2msg=nodeid2msg
+                #*)
+                analyse(
+                    cur=cur,
+                    connect=connect,
+                    begin_time=begin_timestamp,
+                    end_time=end_timestamp
+                )
+            if arguments[0] in ("run","investigate"):
+                investigate(
+                    cur=cur,
+                    connect=connect,
+                    begin_time=begin_timestamp,
+                    end_time=end_timestamp
+                )
+    except IndexError:
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("[*] Engine Terminated")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
