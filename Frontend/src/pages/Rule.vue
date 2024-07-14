@@ -1,0 +1,405 @@
+<template>
+<div class="main-container">
+  <div class="rule-engine" v-if="!showTable">
+    <div class="d-flex justify-content-end">
+      <el-button @click="showUploadDialog" type="primary" class="mr-3 btn btn-primary mt-3">导入规则</el-button>
+      <button class="btn btn-primary mt-3" @click="addEmptyRule">添加新规则</button>
+    </div>
+    <div class="col-12 ">
+      <rule-child v-for="(rule,index) in rules" 
+      :key="index" 
+      :rule="rule"  
+      :rule-id="rule.id"
+      :index = "index"
+      @delete="deleteRule"
+      @updateRules="updateRules"/>
+    </div>
+    <div><button @click="clearLocalStorage">清空本地存储</button>
+      <button @click="showLocalStorage">显示本地存储</button>
+    </div>
+    <el-dialog :visible.sync="dialogVisible" title="选择文件并上传" width="50%" :modal-append-to-body="false">
+            <el-upload
+              class="upload-demo"
+              ref="upload"
+              :on-preview="handlePreview"
+              :on-remove="handleRemove"
+              :http-request="handleUpload"
+              :on-change="handleChange"
+              :file-list="fileList"
+              :accept='".yaml"'
+              :auto-upload="false"
+              multiple
+            >
+              <!-- 插槽内容 -->
+              <el-button slot="trigger" size="small" type="primary" class="mt-0">选取文件</el-button>
+            </el-upload > 
+            <span slot="footer" class="dialog-footer row justify-content-end">
+              <el-button style="margin-left: 10px;"  size="small" type="success" class="mb-0" @click="submitUpload">
+                确 认
+              </el-button>
+              <el-button @click="dialogVisible = false">取 消</el-button>
+            </span>
+          </el-dialog>
+          </div>
+    <div class="table" v-if="showTable">
+      <div>
+    <div class="col-12">
+    <div class="table-header">
+    <div class="table-selector">
+      <label for="tableSelect">选择表格:</label>
+      <select id="tableSelect" v-model="selectedTable" class="form-select">
+        <option value="AttackerTable">攻击源列表</option>
+        <option value="AttackedTable">被攻击方列表</option>
+        <option value="AlterTable">可疑行为列表</option>
+        <option value="DangerTable">危险行为列表</option>
+      </select>
+      </div>
+      <div class="search-bar" >
+      <input v-model="searchText" type="text" placeholder="搜索..." class="form-control" />
+      <p-button class="search-btn ti-search"></p-button>
+    </div>
+    </div>
+    </div>
+      <div class="col-12" v-if="CurrentTable">
+      <card :title="CurrentTable.title" :subTitle="CurrentTable.subTitle" v-if="CurrentTable">
+        <div slot="raw-content" class="table">
+          <paper-table 
+            :data="filteredData" 
+            :columns="CurrentTable.columns">
+          </paper-table>
+        </div>
+      </card>
+      
+      <div class="page_button" style="display: flex; justify-content: space-between; align-items: center;">
+        <p-button type="info" round @click.native="handlePrevPage" style="margin-right: 10px;" >上一页</p-button>
+      <span>第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
+      <p-button  type="info" round @click.native="handleNextPage" style="margin-left: 10px;" >下一页</p-button>
+    </div>
+    </div>
+  </div>
+        </div>
+        </div>
+  </template>
+  <script>
+  import { StatsCard, ChartCard,PaperTable } from "@/components/index";
+  import Chartist from "chartist";
+  import RuleChild from "@/components/RuleChild.vue"
+  import axios from 'axios';
+  const AttackerTableColumns = ["时间","类型","名称","危险等级"];
+const AttackedTableColumns = ["时间","类型","名称","危险等级"];
+const AlterTableColumns = ["时间","主体类型","主体名称","行为","客体类型","客体名称"]
+const DangerTableColumns = ["时间","主体类型","主体名称","行为","客体类型","客体名称"]
+  export default {
+    components:{
+      RuleChild,
+      StatsCard,
+      PaperTable,
+      ChartCard,
+      Chartist,
+    },
+    data() {
+    return {
+      fileList: [],
+      dialogVisible: false,
+      searchText: '',
+      rules: JSON.parse(localStorage.getItem('rules')) || [
+        {ruleName:"sql注入",ruleMessage:"1号",multilineText: '',enable:true,warnLevel:"high",deleted: false}, 
+        {ruleName:"55555",ruleMessage:"2号",multilineText: '',enable:true,warnLevel:"low",deleted: false},
+        {}
+      ],
+      AttackerTable: {
+          title: "攻击源列表",
+          subTitle: "",
+          columns: [...AttackerTableColumns],
+          data: [],
+          options: {
+            pageSize: 10,
+            currentPage: 1,
+          }
+        },
+        AttackedTable: {
+          title: "被攻击方列表",
+          subTitle: "",
+          columns: [...AttackedTableColumns],
+          data: [],
+          options: {
+            pageSize: 10,
+            currentPage: 1,
+          }
+        },
+        AlterTable: {
+          title: "可疑行为列表",
+          subTitle: "",
+          columns: [...AlterTableColumns],
+          data: [],
+          options: {
+            pageSize: 10,
+            currentPage: 2,
+          }
+        },
+        DangerTable: {
+          title: "危险行为列表",
+          subTitle: "",
+          columns: [...DangerTableColumns],
+          data: [],
+          options: {
+            pageSize: 10,
+            currentPage: 1,
+          }
+        }
+    }
+  },
+  computed:{
+    CurrentTable() {
+        return this[this.selectedTable];
+      },
+      currentPage() {
+        return this.CurrentTable.options.currentPage;
+      },
+      pageSize() {
+        return this.CurrentTable.options.pageSize || 6;
+      },
+      totalItems() {
+        return this.allFilteredData.length || 0;
+      },
+      totalPages() {
+        return Math.ceil(this.totalItems / this.pageSize) || 1;
+      },
+      currentPageData() {
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const endIndex = startIndex + this.pageSize;
+        return this.CurrentTable.data.slice(startIndex, endIndex);
+      },
+      filteredData() {
+        const searchText = this.searchText.trim().toLowerCase();
+        return this.CurrentTable.data.filter(item => {
+          return Object.values(item).some(value => {
+            return String(value).toLowerCase().includes(searchText);
+          });
+        });
+      },
+  },
+  mounted() {
+    if (!localStorage.getItem('rules')) {
+      this.saveRules(); // 如果本地存储中没有数据，则保存默认数据
+    }
+  },
+  methods: {
+
+
+    handlePreview(file) {
+  if (file.raw.type !== 'application/yaml') {
+    this.$message.error('只能预览 yaml 文件');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      // 解析 JSON
+      const content = JSON.parse(e.target.result);
+      const formattedContent = JSON.stringify(content, null, 2);
+      
+      // 使用 pre 标签来保留格式
+      const htmlContent = `<pre style="white-space: pre-wrap; word-wrap: break-word;">${formattedContent}</pre>`;
+      
+      this.$alert(htmlContent, '文件内容预览', {
+        dangerouslyUseHTMLString: true,
+        customClass: 'json-preview-dialog',
+        closeOnClickModal: true,
+        closeOnPressEscape: true,
+      });
+    } catch (error) {
+      this.$message.error('无法解析 JSON 文件: ' + error.message);
+    }
+  };
+  reader.readAsText(file.raw);
+},
+
+
+handleChange(file, fileList) {
+  this.fileList = fileList.filter(file => file.name.endsWith('.yaml'));
+  if (this.fileList.length !== fileList.length) {
+    this.$message.warning('只支持 .yaml 文件，非 yaml 文件已被过滤');
+  }
+},
+
+handleRemove(file, fileList) {
+  this.fileList = fileList;
+  this.$message({
+    message: `文件 ${file.name} 已被移除`,
+    type: 'info'
+  });
+},
+
+
+    handleUpload() {
+      // 阻止默认的上传行为
+      return Promise.resolve();
+    },
+    submitUpload() {
+  if (this.fileList.length === 0) {
+    this.$message.warning('请先选择文件');
+    return;
+  }
+  
+  const fileReadPromises = this.fileList.map(file => this.readFileAsJSON(file.raw));
+  
+  Promise.all(fileReadPromises)
+    .then(results => {
+      results.forEach(result => {
+        if (result.success) {
+          this.importRule(result.data);
+        } else {
+          this.$message.error(`文件 ${result.fileName} 导入失败：${result.error}`);
+        }
+      });
+      
+      this.dialogVisible = false;
+      this.fileList = [];
+    })
+    .catch(error => {
+      console.error('处理文件时发生错误:', error);
+      this.$message.error('导入过程中发生错误，请检查文件格式');
+    });
+},
+
+readFileAsJSON(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedRule = JSON.parse(e.target.result);
+        resolve({ success: true, data: importedRule, fileName: file.name });
+      } catch (error) {
+        resolve({ success: false, error: '文件不是有效的JSON格式', fileName: file.name });
+      }
+    };
+    reader.readAsText(file);
+  });
+},
+
+
+importRule(rule) {
+  if (rule.ruleName && rule.warnLevel && rule.ruleMessage && rule.multilineText) {
+    const newRule = {
+      ruleName: rule.ruleName,
+      warnLevel: rule.warnLevel,
+      ruleMessage: rule.ruleMessage,
+      multilineText: typeof rule.multilineText === 'object' ? JSON.stringify(rule.multilineText, null, 2) : rule.multilineText,
+      enable: rule.enable !== undefined ? rule.enable : true,
+      showTextArea: false
+    };
+
+    // 检查规则名称是否唯一
+    if (this.rules.some(existingRule => existingRule.ruleName === newRule.ruleName)) {
+      this.$message.warning(`规则 "${newRule.ruleName}" 已存在，将被跳过`);
+      return;
+    }
+
+    // 将新规则添加到规则数组中
+    this.rules.push(newRule);
+    // 保存到本地存储
+    this.saveRules();
+
+    this.$message.success(`规则 "${newRule.ruleName}" 导入成功！`);
+  } else {
+    throw new Error('JSON文件格式不正确或缺少必要字段');
+  }
+},
+
+
+    showUploadDialog() {
+        this.dialogVisible = true;
+      }, 
+
+
+    clearLocalStorage() {
+    localStorage.clear();
+    this.rules = []; 
+  },
+
+  showLocalStorage(){
+    console.log(JSON.parse(localStorage.getItem('rules')));
+    console.log(this.rules);
+  },
+
+
+  async deleteRule(ruleId) {
+    const ruleIndex = this.rules.findIndex(rule => rule.id === ruleId);
+  if (ruleIndex === -1) {
+    console.error('未找到对应的规则');
+    return;
+  }
+  console.log(this.rules);
+  const deletedRule = this.rules[ruleIndex];
+  console.log(ruleIndex,deletedRule);
+  console.log(JSON.parse(localStorage.getItem('rules')));
+  this.rules.splice(ruleIndex, 1);
+  console.log(this.rules);
+  this.removeRuleFromLocalStorage(ruleId);
+  this.saveRules();
+  this.loadRules();
+},
+
+// 新增方法：从本地存储中移除特定规则
+removeRuleFromLocalStorage(ruleId) {
+  localStorage.removeItem(`ruleName_${ruleId}`);
+  localStorage.removeItem(`warnLevel_${ruleId}`);
+  localStorage.removeItem(`ruleMessage_${ruleId}`);
+  localStorage.removeItem(`multilineText_${ruleId}`);
+  localStorage.removeItem(`enable_${ruleId}`);
+},
+
+
+    
+saveRules() {
+      localStorage.setItem('rules', JSON.stringify(this.rules));
+},
+
+
+    addEmptyRule() {
+      const newRule = {
+         id: Date.now(), 
+         ruleName: "",
+         ruleMessage: "",
+         multilineText: '',
+         enable: false,
+         warnLevel: "",
+         deleted: false };
+      this.rules.push(newRule);
+      this.saveRules();
+      this.loadRules();
+  },
+
+
+    loadRules() {
+      const storedRules = JSON.parse(localStorage.getItem('rules')) || [];
+      this.rules = Array.isArray(storedRules) ? storedRules : [];
+    },
+
+
+    updateRules() {
+      // 更新 rules 数据，重新从本地存储中加载
+      this.loadRules();
+    },
+  }
+}
+  </script>
+  <style>
+.search-bar {
+  display: flex;
+  align-items: center;
+  margin-right: auto;
+}
+.json-preview-dialog .el-message-box__message {
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.json-preview-dialog .el-message-box__message pre {
+  margin: 0;
+  font-family: monospace;
+  font-size: 14px;
+}
+</style>
