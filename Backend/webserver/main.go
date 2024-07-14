@@ -30,6 +30,8 @@ func main() {
 
 	router.POST("/data/setup-audit", audit_data.SetupAudit)
 	router.GET("/data/audit-logs", audit_data.GetAuditLogs)
+	router.GET("/data/agent-info", audit_data.GetAgentInfo)
+	router.POST("/data/upload-log", audit_data.UploadLog)
 
 	router.GET("/alarm/message/list", open_api_forward.ForwardMessageListRequest)
 	router.GET("/alarm/alarm/list", open_api_forward.ForwardAlarmListRequest)
