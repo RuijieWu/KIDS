@@ -11,12 +11,18 @@ from config import *
 from utils import *
 
 def stringtomd5(originstr):
+    '''
+    stringtomd5
+    '''
     originstr = originstr.encode("utf-8")
     signaturemd5 = hashlib.sha256()
     signaturemd5.update(originstr)
     return signaturemd5.hexdigest()
 
 def store_netflow(file_path, cur, connect):
+    '''
+    store_netflow
+    '''
     "Parse netflow type data from logs them store them into netflow_node_table"
     netobjset = set()
     netobj2hash = {}
@@ -58,7 +64,9 @@ def store_netflow(file_path, cur, connect):
     connect.commit()
 
 def store_subject(file_path, cur, connect):
-    # Parse subject type data from logs them store into subject_node_table
+    '''
+    store_subject
+    '''
     scusess_count = 0
     fail_count = 0
     #*subject_objset = set()
@@ -91,7 +99,9 @@ def store_subject(file_path, cur, connect):
     connect.commit()
 
 def store_file(file_path, cur, connect):
-    # Parse file type data from logs them store into file_node_table
+    '''
+    store_file
+    '''
     file_node = set()
     for file in tqdm(FILE_LIST):
         with open(file_path + file, "r") as f:
@@ -128,6 +138,9 @@ def store_file(file_path, cur, connect):
     connect.commit()
 
 def create_node_list(cur, connect):
+    '''
+    create_node_list
+    '''
     node_list = {}
 
     # file
@@ -191,6 +204,9 @@ def create_node_list(cur, connect):
     return nodeid2msg, subject_uuid2hash, file_uuid2hash, net_uuid2hash
 
 def store_event(file_path, cur, connect, reverse, nodeid2msg, subject_uuid2hash, file_uuid2hash, net_uuid2hash):
+    '''
+    store_event
+    '''
     datalist = []
     for file in tqdm(FILE_LIST):
         with open(file_path + file, "r") as f:

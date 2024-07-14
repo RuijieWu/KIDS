@@ -1,3 +1,7 @@
+'''
+Main Program of KIDS Engine
+'''
+
 import os
 import sys
 import time
@@ -28,7 +32,8 @@ def test(
     link_pred,
     neighbor_loader,
     nodeid2msg,
-    path
+    path,
+    recording = True
 ):
     '''
     测试函数，接收 推理数据，内存模型，图神经网络，链接预测器，邻居加载器，节点ID到消息的映射，路径 为参数
@@ -37,18 +42,17 @@ def test(
     返回时间窗口内的损失情况
     '''
     os.system(f"mkdir -p {path}")
-
-    logger = open("./tests.txt","a",encoding="utf-8")
-    logger.write(f"[*] Test at {time.ctime()}\n")
+    if recording:
+        logger = open(LOG_DIR + "test.txt","a",encoding="utf-8")
 
     memory.eval()
     gnn.eval()
     link_pred.eval()
 
-    memory.reset_state()  # Start with a fresh memory.
-    neighbor_loader.reset_state()  # Start with an empty graph.
+    memory.reset_state()
+    neighbor_loader.reset_state()
 
-    time_with_loss = {}  # key: time，  value： the losses
+    time_with_loss = {}
     total_loss = 0
     edge_list = []
 
@@ -59,7 +63,6 @@ def test(
     event_count = 0
     pos_o = []
 
-    # Record the running time to evaluate the performance
     start = time.perf_counter()
 
     for batch in inference_data.seq_batches(batch_size=BATCH):
@@ -133,9 +136,10 @@ def test(
                 loss += e['loss']
 
             loss = loss / event_count
-            logger.write(
-                f'Time: {time_interval}, Loss: {loss:.4f}, Nodes_count: {len(unique_nodes)}, Edges_count: {event_count}, Cost Time: {(end - start):.2f}s\n'
-            )
+            if recording:
+                logger.write(
+                    f'Time: {time_interval}, Loss: {loss:.4f}, Nodes_count: {len(unique_nodes)}, Edges_count: {event_count}, Cost Time: {(end - start):.2f}s\n'
+                )
             edge_list = sorted(edge_list, key=lambda x: x['loss'], reverse=True)  # Rank the results based on edge losses
             for e in edge_list:
                 log.write(str(e))
@@ -189,6 +193,9 @@ def test_data(
     neighbor_loader,
     nodeid2msg
 ):
+    '''
+    test_data
+    '''
     print("[*] Testing Data")
     #* loss_list = []
     for graph in tqdm(graphs):
@@ -205,6 +212,9 @@ def test_data(
     #* return loss_list
 
 def arg_parse(args: list[str]):
+    '''
+    arg_parse
+    '''
     try:
         if args[1] in ("--help","-h"):
             print(HELP_MSG)
@@ -248,6 +258,9 @@ def arg_parse(args: list[str]):
         return False, "error", "[*] Wrong Arguments!"
 
 def init():
+    '''
+    init
+    '''
     cur , connect = init_database_connection()
     cur.execute(DROP_TABLES)
     connect.commit()

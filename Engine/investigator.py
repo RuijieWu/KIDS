@@ -1,8 +1,7 @@
 '''
-Date: 2024-06-12 22:36:44
-LastEditTime: 2024-07-13 20:10:48
-Description: 
+Investigate APT Attacks and generate provenance graphs
 '''
+
 import os
 from graphviz import Digraph
 import networkx as nx

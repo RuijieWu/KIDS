@@ -1,8 +1,7 @@
 '''
-Date: 2024-06-12 21:29:27
-LastEditTime: 2024-07-13 23:14:31
-Description: Embed Events from database into GNN
+Embed Events from database into GNN
 '''
+
 from sklearn.feature_extraction import FeatureHasher
 from torch_geometric.data import *
 from tqdm import tqdm
@@ -13,15 +12,10 @@ import torch
 from config import *
 from utils import *
 
-#*     time: {
-#*         events_count:len(events)
-#*         edges_count:len(edge_list)
-#*      }
-#*
-#* The are statics of the database
-
-def gen_feature(nodeid2msg,recording = False):
-    # Construct the hierarchical representation for each node label
+def gen_feature(nodeid2msg, rendering = False):
+    '''
+    gen_feature
+    '''
     node_msg_dic_list = []
     for i in tqdm(nodeid2msg.keys()):
         if type(i) == int:
@@ -38,25 +32,30 @@ def gen_feature(nodeid2msg,recording = False):
                 higlist += path2higlist(nodeid2msg[i]['subject'])
             node_msg_dic_list.append(list2str(higlist))
 
-    # Featurize the hierarchical node labels
     FH_string = FeatureHasher(n_features=NODE_EMBEDDING_DIM, input_type="string")
     node2higvec=[]
     for i in tqdm(node_msg_dic_list):
         vec=FH_string.transform([i]).toarray()
         node2higvec.append(vec)
     node2higvec = np.array(node2higvec).reshape([-1, NODE_EMBEDDING_DIM])
-    if recording:
+    if rendering:
         torch.save(node2higvec, ARTIFACT_DIR + "node2higvec")
     return node2higvec
 
-def gen_relation_onehot(recording = False):
-    relvec = torch.nn.functional.one_hot(torch.arange(0, len(REL2ID[DETECTION_LEVEL].keys())//2), num_classes=len(REL2ID[DETECTION_LEVEL].keys())//2)
+def gen_relation_onehot(rendering = False):
+    '''
+    gen_relation_onehot
+    '''
+    relvec = torch.nn.functional.one_hot(
+        torch.arange(0, len(REL2ID[DETECTION_LEVEL].keys())//2),
+        num_classes=len(REL2ID[DETECTION_LEVEL].keys())//2
+    )
     rel2vec = {}
     for i in REL2ID[DETECTION_LEVEL].keys():
         if type(i) is not int:
             rel2vec[i]= relvec[REL2ID[DETECTION_LEVEL][i]-1]
             rel2vec[relvec[REL2ID[DETECTION_LEVEL][i]-1]]=i
-    if recording:
+    if rendering:
         torch.save(rel2vec, ARTIFACT_DIR + "rel2vec")
     return rel2vec
 
@@ -66,8 +65,11 @@ def gen_vectorized_graphs(
     rel2vec,
     begin_time,
     end_time,
-    recording = False
+    rendering = False
 ):
+    '''
+    gen_vectorized_graphs
+    '''
     graphs = []
     for interval_time in tqdm(range(begin_time,end_time,TIME_INTERVAL)):
         begin_timestamp = interval_time
@@ -106,7 +108,7 @@ def gen_vectorized_graphs(
         dataset.msg = dataset.msg.to(torch.float)
         dataset.t = dataset.t.to(torch.long)
 
-        if recording:
+        if rendering:
             torch.save(
                 dataset,
                GRAPHS_DIR + "/graph_" + str(begin_time) + '~' + str(end_time) + ".TemporalData.simple"

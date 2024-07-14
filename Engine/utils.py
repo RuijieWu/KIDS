@@ -1,3 +1,7 @@
+'''
+Utils for KIDS Engine
+'''
+
 import pytz
 from time import mktime
 from datetime import datetime
@@ -26,6 +30,9 @@ import xxhash
 import gc
 
 from config import *
+
+#################################################
+#* General
 
 def ns_time_to_datetime(ns):
     """
@@ -61,17 +68,18 @@ def time_to_datetime_US(s):
 
 def datetime_to_ns_time(date):
     """
-    :param date: str   format: %Y-%m-%d %H:%M:%S   e.g. 2013-10-10 23:40:00
+    :param date: str   format: %Y-%m-%d %H:%M:%S   e.g. 2013-10-10 23:40:00.000000000
     :return: nano timestamp
     """
+    date , ns_sec = date.split('.')
     timeArray = time.strptime(date, "%Y-%m-%d %H:%M:%S")
     timeStamp = int(time.mktime(timeArray))
-    timeStamp = timeStamp * 1000000000
+    timeStamp = timeStamp * 1000000000 + int(ns_sec)
     return timeStamp
 
 def datetime_to_ns_time_US(date):
     """
-    :param date: str   format: %Y-%m-%d %H:%M:%S   e.g. 2013-10-10 23:40:00
+    :param date: str   format: %Y-%m-%d %H:%M:%S   e.g. 2013-10-10 23:40:00.000000000
     :return: nano timestamp
     """
     date , ns_sec = date.split('.')
@@ -82,20 +90,6 @@ def datetime_to_ns_time_US(date):
     timestamp = timestamp.timestamp()
     timeStamp = timestamp * 1000000000 + int(ns_sec)
     return int(timeStamp)
-
-
-#def datetime_to_ns_time_US(date):
-#    """
-#    :param date: str   format: %Y-%m-%d %H:%M:%S   e.g. 2013-10-10 23:40:00
-#    :return: nano timestamp
-#    """
-#    tz = pytz.timezone('US/Eastern')
-#    timeArray = time.strptime(date, "%Y-%m-%d %H:%M:%S")
-#    dt = datetime.fromtimestamp(mktime(timeArray))
-#    timestamp = tz.localize(dt)
-#    timestamp = timestamp.timestamp()
-#    timeStamp = timestamp * 1000000000
-#    return int(timeStamp)
 
 def datetime_to_timestamp_US(date):
     """
@@ -111,6 +105,9 @@ def datetime_to_timestamp_US(date):
     return int(timeStamp)
 
 def init_database_connection():
+    '''
+    init_database_connection
+    '''
     if HOST is not None:
         connect = psycopg2.connect(database = DATABASE,
                                    host = HOST,
@@ -142,35 +139,54 @@ def gen_nodeid2msg(cur):
     return nodeid2msg
 
 def tensor_find(t,x):
+    '''
+    tensor_find
+    '''
     t_np=t.cpu().numpy()
     idx=np.argwhere(t_np==x)
     return idx[0][0]+1
 
 def std(t):
+    '''
+    std
+    '''
     t = np.array(t)
     return np.std(t)
 
 def var(t):
+    '''
+    var
+    '''
     t = np.array(t)
     return np.var(t)
 
 def mean(t):
+    '''
+    mean
+    '''
     t = np.array(t)
     return np.mean(t)
 
 def hashgen(l):
-    """Generate a single hash value from a list. @l is a list of
+    """
+    Generate a single hash value from a list. @l is a list of
     string values, which can be properties of a node/edge. This
-    function returns a single hashed integer value."""
+    function returns a single hashed integer value.
+    """
     hasher = xxhash.xxh64()
     for e in l:
         hasher.update(e)
     return hasher.intdigest()
 
 #################################################
+
+#################################################
 #* embedder
 
 def get_events(cur,begin_time,end_time):
+    '''
+    get_events
+    '''
     sql = """
     select * from event_table
     where
@@ -182,6 +198,9 @@ def get_events(cur,begin_time,end_time):
     return events
 
 def path2higlist(p):
+    '''
+    path2higlist
+    '''
     l=[]
     spl=p.strip().split('/')
     for i in spl:
@@ -192,6 +211,9 @@ def path2higlist(p):
     return l
 
 def ip2higlist(p):
+    '''
+    ip2higlist
+    '''
     l=[]
     spl=p.strip().split('.')
     for i in spl:
@@ -202,7 +224,11 @@ def ip2higlist(p):
     return l
 
 def list2str(l):
+    '''
+    list2str
+    '''
     return ''.join(l)
+
 #################################################
 
 #################################################
@@ -234,12 +260,18 @@ def get_attack_list(cur,begin_time,end_time):
     return attack_list
 
 def replace_path_name(path_name):
+    '''
+    replace_path_name
+    '''
     for i in REPLACE_DICT[DETECTION_LEVEL]:
         if i in path_name:
             return REPLACE_DICT[DETECTION_LEVEL][i]
     return path_name
 
 def save_dangerous_actions(cur,connect,dangerous_action_list):
+    '''
+    save_dangerous_actions
+    '''
     sql = '''insert into dangerous_actions_table
                          values %s
             '''
@@ -247,6 +279,9 @@ def save_dangerous_actions(cur,connect,dangerous_action_list):
     connect.commit()
 
 def save_dangerous_subjects(cur,connect,dangerous_subjects):
+    '''
+    save_dangerous_subjects
+    '''
     sql = '''insert into dangerous_subjects_table
                          values %s
             '''
@@ -254,6 +289,9 @@ def save_dangerous_subjects(cur,connect,dangerous_subjects):
     connect.commit()
 
 def save_dangerous_objects(cur,connect,dangerous_objects):
+    '''
+    save_dangerous_objects
+    '''
     sql = '''insert into dangerous_objects_table
                          values %s
             '''
@@ -261,6 +299,9 @@ def save_dangerous_objects(cur,connect,dangerous_objects):
     connect.commit()
 
 def save_anomalous_actions(cur,connect,anomalous_actions):
+    '''
+    save_anomalous_actions
+    '''
     sql = '''insert into anomalous_actions_table
                          values %s
             '''
@@ -268,6 +309,9 @@ def save_anomalous_actions(cur,connect,anomalous_actions):
     connect.commit()
 
 def save_anomalous_subjects(cur,connect,anomalous_subjects):
+    '''
+    save_anomalous_subjects
+    '''
     sql = '''insert into anomalous_subjects_table
                          values %s
             '''
@@ -275,6 +319,9 @@ def save_anomalous_subjects(cur,connect,anomalous_subjects):
     connect.commit()
 
 def save_anomalous_objects(cur,connect,anomalous_objects):
+    '''
+    save_anomalous_objects
+    '''
     sql = '''insert into anomalous_objects_table
                          values %s
             '''
@@ -286,9 +333,13 @@ def save_aberration_statics(
     connect,
     aberration_statics
 ):
+    '''
+    save_aberration_statics
+    '''
     sql = '''insert into aberration_statics_table
                          values %s
             '''
     ex.execute_values(cur, sql, aberration_statics, page_size=10000)
     connect.commit()
+
 #################################################

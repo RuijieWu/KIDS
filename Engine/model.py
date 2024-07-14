@@ -1,8 +1,12 @@
 '''
-Date: 2024-06-09 18:07:09
-LastEditTime: 2024-07-13 23:13:13
+Date: 2024-07-14 13:07:03
+LastEditTime: 2024-07-14 14:35:55
 Description: 
 '''
+'''
+Model Definition of KIDS Engine
+'''
+
 from utils import *
 from config import *
 

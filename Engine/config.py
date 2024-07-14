@@ -1,6 +1,7 @@
-"""
-Config for whole GNN Engine
-"""
+'''
+Config for whole KIDS Engine
+'''
+
 ########################################################
 #
 #                   Artifacts path
@@ -26,7 +27,8 @@ TEST_RE = ARTIFACT_DIR + "test_re/"
 # The directory to save all visualized results
 VIS_RE = ARTIFACT_DIR + "vis_re/"
 
-
+# The directory to save logs
+LOG_DIR = "./Log/"
 
 ########################################################
 #
@@ -889,7 +891,7 @@ MINUTE = 60000000000
 TIME_INTERVAL = DAY
 LOSS_FACTOR = 1.5
 MAX_AVG_LOSS = 100
-MIN_AVG_LOSS = 4
+MIN_AVG_LOSS = 4.5
 
 DETECTION_LEVEL = "cadets-e3"
 
