@@ -8,7 +8,7 @@ In response to many existing security challenges and business scenarios, we have
 
 ## Design
 
-![KIDS Structure Design](https://github.com/RuijieWu/KIDS/Assets/KIDS%20structure.png)
+![KIDS Structure Design](https://github.com/RuijieWu/KIDS/blob/main/Assets/KIDS%20structure.png)
 
 ## Layout
 
