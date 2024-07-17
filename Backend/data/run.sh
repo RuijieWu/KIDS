@@ -1,2 +1,0 @@
-sudo /home/ubuntu/anaconda3/envs/softbei/bin/python /home/ubuntu/softbei/KIDS/Backend/data/main.py &
-sudo /home/ubuntu/anaconda3/envs/softbei/bin/python /home/ubuntu/softbei/KIDS/Backend/data/main8020.py &

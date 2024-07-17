@@ -5,7 +5,6 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"github.com/beltran/gohive"
 )
 
 var DB *gorm.DB
@@ -55,7 +54,7 @@ func (BlacklistNetFlow) TableName() string {
 
 // 初始化数据库连接并创建表
 func InitBlacklistDatabase() {
-	dsn := "host=/var/run/postgresql/ user=postgres password=postgres dbname=tc_cadet_dataset_db port=5432 sslmode=disable TimeZone=Asia/Shanghai client_encoding=UTF8"
+	dsn := "host=/var/run/postgresql/ user=postgres password=postgres dbname=tc_cadet_dataset_db port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -75,18 +74,4 @@ func InitBlacklistDatabase() {
 	}
 
 	log.Println("Database initialized successfully")
-}
-
-func InitHiveConnection() {
-	configuration := gohive.NewConnectConfiguration()
-	// 设置 Hive 连接参数，根据实际情况填写
-	configuration.Username = "your_hive_username"
-	configuration.Password = "your_hive_password"
-
-	var err error
-	hiveConn, err = gohive.Connect("your_hive_host", 10000, "NOSASL", configuration)
-	if err != nil {
-		log.Fatalf("Failed to connect to Hive: %v", err)
-	}
-	log.Println("Connected to Hive successfully")
 }
