@@ -184,7 +184,10 @@ func GetAuditLogs(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Audit logs cleared, audit rules added, and auditd service restarted successfully."})
+	if len(results) == 0 {
+		c.JSON(http.StatusOK, gin.H{"message": "Audit logs cleared, audit rules added, and auditd service restarted successfully."})
+	}
+	c.JSON(http.StatusOK, results)
 }
 
 func GetAgentInfo(c *gin.Context) {
