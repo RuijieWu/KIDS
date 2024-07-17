@@ -3,6 +3,7 @@ package audit_data
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -41,7 +42,7 @@ type AgentInfo struct {
 var agentIPs = []string{
 	"localhost:8010",
 	"localhost:8020",
-	"localhost:8030",
+	// "localhost:8012",
 }
 
 func SetupAudit(c *gin.Context) {
@@ -94,14 +95,26 @@ func SetupAudit(c *gin.Context) {
 
 	wg.Wait()
 
+	err_count := 0
+
 	// Check for errors
 	for _, err := range errors {
 		if err != nil {
-			log.Println("Error:", err)
+			err_count++
 		}
 	}
 
-	c.JSON(http.StatusOK, results)
+	if err_count == len(agentIPs) {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to communicate with all agents"})
+		return
+	}
+
+	if err_count > 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to communicate with %d agents", err_count)})
+		return
+	}
+
+	c.JSON(http.StatusOK, results[0])
 }
 
 func GetAuditLogs(c *gin.Context) {
@@ -176,6 +189,9 @@ func GetAuditLogs(c *gin.Context) {
 		}
 	}
 
+	if len(results) == 0 {
+		c.JSON(http.StatusOK, gin.H{"message": "Audit logs cleared, audit rules added, and auditd service restarted successfully."})
+	}
 	c.JSON(http.StatusOK, results)
 }
 
@@ -225,4 +241,30 @@ func GetAgentInfo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, results)
+}
+
+// read a 'json' type Events struct from any type of file and insert to database
+func UploadLog(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer src.Close()
+
+	// parse to type Events struct and insert to database
+	events := Events{}
+	if err := json.NewDecoder(src).Decode(&events); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	InsertEvents(events)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Successfully uploaded and inserted the logs"})
 }

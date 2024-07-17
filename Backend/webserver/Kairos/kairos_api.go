@@ -243,7 +243,7 @@ func GetGraphVisual(c *gin.Context) {
 		// 检查时间范围
 		fileStartTime, fileEndTime, err := parseTimestamp(prefix)
 		if err != nil {
-			continue
+			continue 
 		}
 
 		if fileStartTime >= startTime && fileEndTime <= endTime {
