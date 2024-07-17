@@ -1,98 +1,66 @@
 package Blacklist
 
 import (
-    "context"
-    "fmt"
-    "log"
-    "net/http"
+	"log"
+	"net/http"
 
-    "github.com/gin-gonic/gin"
-    "github.com/beltran/gohive"
+	"github.com/gin-gonic/gin"
 )
 
+// SetBlackList 设置黑名单
+// 以json的格式传入黑名单数据，分为netflow、subject、object四种类型，分别是一个数组
+// 例如：
+/*
+{
+	"netflow": [
+		{
+			"src_addr": "192.168.1.1",
+			"src_port": "8080",
+			"dst_addr": "93.184.216.34",
+			"dst_port": "443"
+		}
+	],
+	"subject": [
+		{
+			"exec": ""
+		}
+	],
+	"file": [
+		{
+			"path": ""
+		}
+	]
+}
+*/
+
 type BlackList struct {
-    NetFlow []BlacklistNetFlow `json:"netflow"`
-    Subject []BlacklistSubject `json:"subject"`
-    File    []BlacklistFile    `json:"file"`
+	NetFlow []BlacklistNetFlow `json:"netflow"`
+	Subject []BlacklistSubject `json:"subject"`
+	File    []BlacklistFile    `json:"file"`
 }
 
-var hiveConn *gohive.Connection
-
 func SetBlackList(c *gin.Context) {
-    var blackList BlackList
-    err := c.BindJSON(&blackList)
-    if err != nil {
-        log.Println(err)
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
-
-    ctx := context.Background()
-    cursor := hiveConn.Cursor()
-
-    // 清空 Hive 表
-    cursor.Exec(ctx, "TRUNCATE TABLE blacklist_netflows_table")
-    if cursor.Err != nil {
-        log.Printf("Failed to truncate blacklist_netflows_table: %v", cursor.Err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": cursor.Err.Error()})
-        return
-    }
-
-    for _, netFlow := range blackList.NetFlow {
-        query := fmt.Sprintf(
-            `INSERT INTO blacklist_netflows_table (src_addr, src_port, dst_addr, dst_port) VALUES ('%s', '%s', '%s', '%s')`,
-            netFlow.LocalAddr, netFlow.LocalPort, netFlow.RemoteAddr, netFlow.RemotePort,
-        )
-        cursor.Exec(ctx, query)
-        if cursor.Err != nil {
-            log.Printf("Failed to insert into blacklist_netflows_table: %v", cursor.Err)
-            c.JSON(http.StatusInternalServerError, gin.H{"error": cursor.Err.Error()})
-            return
-        }
-    }
-
-    cursor.Exec(ctx, "TRUNCATE TABLE blacklist_subjects_table")
-    if cursor.Err != nil {
-        log.Printf("Failed to truncate blacklist_subjects_table: %v", cursor.Err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": cursor.Err.Error()})
-        return
-    }
-
-    for _, subject := range blackList.Subject {
-        query := fmt.Sprintf(
-            `INSERT INTO blacklist_subjects_table (exec) VALUES ('%s')`,
-            subject.Exec,
-        )
-        cursor.Exec(ctx, query)
-        if cursor.Err != nil {
-            log.Printf("Failed to insert into blacklist_subjects_table: %v", cursor.Err)
-            c.JSON(http.StatusInternalServerError, gin.H{"error": cursor.Err.Error()})
-            return
-        }
-    }
-
-    cursor.Exec(ctx, "TRUNCATE TABLE blacklist_files_table")
-    if cursor.Err != nil {
-        log.Printf("Failed to truncate blacklist_files_table: %v", cursor.Err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": cursor.Err.Error()})
-        return
-    }
-
-    for _, file := range blackList.File {
-        query := fmt.Sprintf(
-            `INSERT INTO blacklist_files_table (path) VALUES ('%s')`,
-            file.Path,
-        )
-        cursor.Exec(ctx, query)
-        if cursor.Err != nil {
-            log.Printf("Failed to insert into blacklist_files_table: %v", cursor.Err)
-            c.JSON(http.StatusInternalServerError, gin.H{"error": cursor.Err.Error()})
-            return
-        }
-    }
-
-    cursor.Close()
-    c.JSON(http.StatusOK, gin.H{"message": "success"})
+	var blackList BlackList
+	err := c.BindJSON(&blackList)
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	//clear the table
+	DB.Exec("TRUNCATE TABLE blacklist_netflows_table")
+	for _, netFlow := range blackList.NetFlow {
+		DB.Create(&netFlow)
+	}
+	DB.Exec("TRUNCATE TABLE blacklist_subjects_table")
+	for _, subject := range blackList.Subject {
+		DB.Create(&subject)
+	}
+	DB.Exec("TRUNCATE TABLE blacklist_files_table")
+	for _, file := range blackList.File {
+		DB.Create(&file)
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "success"})
 }
 
 // GetBlackList 获取黑名单
