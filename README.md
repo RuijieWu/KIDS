@@ -6,9 +6,7 @@ Kairos-based Intrusion Detection System (KIDS) is a powerful and flexible protec
 
 In response to many existing security challenges and business scenarios, we have implemented the Kairos Based Intrusion Detection System (KIDS), which can collect, report and analyze network security threat intrusion data, and use the most advanced graph neural network to analyze the collected data and trace the attack source to help users accurately identify and trace the source and behavior of network security threats
 
-## Design
-
-![KIDS Structure Design](https://github.com/RuijieWu/KIDS/blob/main/Assets/KIDS%20structure.png)
+![KIDS Structure Design](https://github.com/RuijieWu/KIDS/blob/main/Assets/KIDS%20Structure.png)
 
 ## Layout
 
@@ -20,10 +18,13 @@ In response to many existing security challenges and business scenarios, we have
 - KIDS Docs
   - User Manual
   - Technology Document
+  - Slides
   - Supplementary Files
 
-## Install
+## Design
 
-### Requirements
+To learn the detail , read the [Technology Document](https://github.com/RuijieWu/KIDS/blob/main/Docs/技术文档.pdf) or [Slides](https://github.com/RuijieWu/KIDS/blob/main/Docs/Slides.pdf)
 
-## Deploy
+## Install / Deploy
+
+read the [User Manual](https://github.com/RuijieWu/KIDS/blob/main/Docs/操作手册.pdf)
