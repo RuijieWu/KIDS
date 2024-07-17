@@ -190,3 +190,7 @@ create table anomalous_objects_table
     OubjectName    varchar
 );
 ```
+
+## 其它数据集数据库
+
+参考当前目录下的其它 .sql 批处理文件
