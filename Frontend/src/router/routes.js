@@ -8,7 +8,9 @@ import TableList from "@/pages/TableList.vue";
 import Rule from"@/pages/Rule.vue"
 import SourceMaps from "../pages/SourceMaps.vue";
 import Settings from "@/pages/Settings.vue";
-import DataUpload from "@/pages/DataUpload.vue"
+import DataUpload from "@/pages/DataUpload.vue";
+import Chat from "../pages/Chat.vue";
+import Icon from "../pages/Icons.vue";
 const routes = [
   {
     path: "/",
@@ -39,6 +41,16 @@ const routes = [
         path:"upload-data",
         name:"upload-data",
         component : DataUpload,
+     },
+     {
+        path:"chat",
+        name:"chat",
+        component:Chat,
+     },
+     {
+        path:"icon",
+        name:"icon",
+        component:Icon,
      },
      {
       path:"settings",

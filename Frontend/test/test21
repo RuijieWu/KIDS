@@ -79,8 +79,9 @@
           </p-button></span
       >
       <div slot="legend">
-        <i class="fa fa-circle text-info"></i> 可疑
-        <i class="fa fa-circle text-danger"></i> 危险
+        <i class="fa fa-circle text-info"></i> 低危
+        <i class="fa fa-circle text-danger"></i> 中危
+        <i class="fa fa-circle text-warning"></i> 高危
       </div>
     </chart-card>
   </div>
@@ -445,7 +446,7 @@ async fetchActivityData() {
         // 获取昨天各个时间段的数据
         const yesterdayDataPromises = formattedDatesYesterday.map(async (startTime, index) => {
             const endTime = index === formattedDatesYesterday.length - 1 ? formattedDatesToday[0] : formattedDatesYesterday[index + 1];
-            const response = await axios.get('http://43.138.200.89:8080/alarm/alarm/list', {
+            /*const response = await axios.get('http://43.138.200.89:8080/alarm/alarm/list', {
                 params: {
                     page: '1',
                     pageSize: '1',
@@ -458,7 +459,7 @@ async fetchActivityData() {
                     'content-type':	'application/json',
                     // 根据需要添加授权信息
                 }
-            });
+            });*/
             const response_kairos = await axios.get('http://43.138.200.89:8080/kairos/actions', {
                 params: {
                     page: '1',
@@ -482,7 +483,6 @@ async fetchActivityData() {
         // 更新 activityChart.data 中的数据
         this.activityChart.data.series[0] = todayCounts;
         this.activityChart.data.series[1] = yesterdayCounts;
-        this.activityChart.update();
     } catch (error) {
         console.error('获取活动数据失败：', error);
     }
@@ -580,7 +580,7 @@ async fetchChartData() {
                 const k = i * j;
                 const attackEndTime = formattedDates[7 - i];
                 const attackStartTime = formattedDates[6 - i];
-                const response_open = await axios.get('http://43.138.200.89:8080/alarm/alarm/list', {
+                /*const response_open = await axios.get('http://43.138.200.89:8080/alarm/alarm/list', {
                     params: {
                         page: '1',
                         pageSize: '1',
@@ -593,7 +593,7 @@ async fetchChartData() {
                     headers: {
                         "content-type": "application/json",
                     }
-                });
+                });*/
 
                 if(j == 3){
                     const attackEndTime_kairos = formattedDates_kairos[7 - i];
@@ -639,10 +639,9 @@ async fetchChartData() {
                     }
                 } else {
                     this.usersChart.data.series[0][6-i] += response_open.data.body.total;
-                    total_actions_anomalous += response_open.data.body.total;
+                    /*total_actions_anomalous += response_open.data.body.total;*/
                 }
             }
-            
         }
         this.statsCards[2].value = total_actions_anomalous.toString()+'/'+total_action_danger.toString();
         const totalAlterToday = this.usersChart.data.series[0][5] + this.usersChart.data.series[1][5];
@@ -665,8 +664,6 @@ async fetchChartData() {
         // 更新subject和object名称统计数据
         this.subjectNames = Object.values(top6Subjects);
         this.objectNames = Object.values(top6Objects);
-        this.usersChart.update();
-        this.preferencesChart.update();
     } catch (error) {
         this.error = '获取图表数据失败';
     } finally {
