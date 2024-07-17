@@ -45,6 +45,7 @@ func main() {
 	router.GET("/kairos/objects", Kairos.GetObjects)
 	router.GET("/kairos/aberration-statics", Kairos.GetAberrationStatics)
 	router.GET("/kairos/graph-visual", Kairos.GetGraphVisual)
+	router.POST("/kairos/completions", Kairos.GetCompletions)
 
 	router.POST("/blacklist/set-blacklist", Blacklist.SetBlackList)
 	router.GET("/blacklist/get-blacklist", Blacklist.GetBlackList)
