@@ -729,7 +729,6 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
 },
 
 showProgressBar() {
-  alert("start");
   this.progressVisible = true;
   this.progress = 0;
   const randomDuration = Math.floor(Math.random() * (50000 - 20000 + 1) + 20000);
