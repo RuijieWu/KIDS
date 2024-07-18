@@ -37,6 +37,7 @@
         @input="submitMultilineText">
         </textarea>
       </div>
+      <!--
        <div class="model-mode row mt-2">
         <div class="row ml-3">
     <el-tag>分析方式</el-tag>
@@ -49,19 +50,18 @@
       </el-option>
     </el-select>
   </div>
-       </div>
+       </div> -->
       <el-dialog :visible.sync="dialogVisible" title="选择文件并上传" width="50%" :modal-append-to-body="false">
             <el-upload
               class="upload-demo"
               ref="upload"
-              action="https://jsonplaceholder.typicode.com/posts/"
+              action=""
               :on-preview="handlePreview"
               :on-remove="handleRemove"
               :file-list="fileList"
-              :accept="['.csv', '.xls', '.xlsx']"
+              :accept="'.json'"
               :auto-upload="false"
             >
-              <!-- 插槽内容 -->
               <el-button slot="trigger" size="small" type="primary" class="mt-0">选取文件</el-button>
             </el-upload > 
             <span slot="footer" class="dialog-footer row justify-content-end">
@@ -71,7 +71,13 @@
               <el-button @click="dialogVisible = false">取 消</el-button>
             </span>
           </el-dialog>
-          <span class="justify-content-center row mt-3"><el-button>开始分析</el-button></span>
+          <span class="justify-content-center row mt-3 mb-2"><el-button @click="uploadFile">开始分析</el-button></span>
+          <el-progress class="justify-content-center"
+      v-if="progressVisible"
+      :percentage="progress"
+      :format="format"
+      :stroke-width="20"
+    ></el-progress>
         </div>
         <div class="top-row-right column">
   <div class="row">
@@ -90,7 +96,54 @@
   </div>
 </div>
     </div>
-      <div class="bottom-row">
+    <div class="bottom-row mt-3">
+      <div class="row">
+  <div class="col-4">
+    <chart-card
+      title="被攻击方类型"
+      chartLibrary="echarts"
+      :chartData="objectTypes"
+      chart-type="Pie"
+    />
+  </div>
+  <div class="col-8">
+  <chart-card
+  title="最多次被攻击方"
+  sub-title="演示数据"
+  chartLibrary="echarts"
+  chartType="Bar"
+  :chartData="objectNames"
+/>
+</div>
+</div>
+<div class="row">
+  <div class="col-4">
+    <chart-card
+      title="攻击方类型"
+      chartLibrary="echarts"
+      :chartData="subjectTypes"
+      chart-type="Pie"
+    />
+  </div>
+  <div class="col-8">
+  <chart-card
+  title="最多次攻击方"
+  sub-title="演示数据"
+  chartLibrary="echarts"
+  chartType="Bar"
+  :chartData="subjectNames"
+/>
+</div>
+</div>
+    </div>
+    
+      <div class="bottom-row mt-3">
+        <div class="d-flex justify-content-start mb-3">
+      <el-button @click="toggleView" type="primary">
+        {{ showActionTable ? '显示安全事件' : '显示行为表格' }}
+      </el-button>
+    </div>
+     <div class="action-table" v-if="showActionTable">
     <div class="col-12">
     <div class="table-header">
     <div class="table-selector">
@@ -124,11 +177,27 @@
       <p-button  type="info" round @click.native="handleNextPage" style="margin-left: 10px;" >下一页</p-button>
     </div>
     </div>
+    </div>
+    <div class="source-map" v-else>
+      <div class="col-12">
+        <div class="table-header">
+          <div class="search-bar">
+            <input v-model="searchText" type="text" placeholder="搜索..." class="form-control" />
+            <p-button class="search-btn ti-search"></p-button>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <source-table :sources="filteredSources" :title="EventTable.title"></source-table>
+      </div>
+    </div>
   </div>
+  
     </div>
   </template>
   
   <script>
+  import SourceTable from '@/components/SourceTable.vue';
   import { StatsCard, ChartCard,PaperTable } from "@/components/index";
   import Chartist from "chartist";
   import { ref } from 'vue';
@@ -141,6 +210,7 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
   export default {
     name: 'LogUpload',
     components: {
+      SourceTable,
       StatsCard,
       PaperTable,
       ChartCard,
@@ -149,6 +219,9 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
     },
     data() {
       return {
+        progressVisible: false,
+        progress: 0,
+        showActionTable: true,
         showTextArea: false,
         selectedUploadType: 'file',
         selectedFile: null,
@@ -157,8 +230,12 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
         selectedTable: 'AttackerTable',
         searchText: '',
         dialogVisible: false,
-      fileList: [],
-      analysisMethod:[{value:"high",label:'详细模式'},{value:'medium',label:'均衡模式'},{value:'low',label:'快速模式'}],
+        fileList: [],
+        subjectTypes: [{value:20,name:'netflow'},{value:30,name:'lsof'}],
+        objectTypes: {},
+        subjectNames:[{name:'',value:0,series:[0,0,0,0,0,0]}], /* series对应:EVENT_RECVFROM EVENT_SENDTO ,EVENT_EXECUTE ,EVENT_WRITE ,EVENT_OPEN ,EVENT_CLOSE*/
+        objectNames:[{name:'',value:0,series:[0,0,0,0,0,0]}],
+        analysisMethod:[{value:"high",label:'详细模式'},{value:'medium',label:'均衡模式'},{value:'low',label:'快速模式'}],
         uploadMethod:[{value:'file',label:'文件上传'},{value:'manual',label:'手动输入'}],
         statsCards: [
         {
@@ -185,14 +262,7 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
           value: "",
           footerIcon: "ti-timer",
         },
-        {
-          type: "info",
-          icon: "ti-twitter-alt",
-          title: "任务",
-          subTitle:"()",
-          value: "",
-          footerIcon: "ti-reload",
-        },
+
       ],
         AttackerTable: {
           title: "攻击源列表",
@@ -233,10 +303,33 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
             pageSize: 10,
             currentPage: 1,
           }
-        }
+        },
+        EventTable: {
+          title: "警告信息",
+          data:[
+            {ID:1, 开始时间:"2024-6-15",结束时间:"2024-6-15", 可疑行为数:0, 可疑攻击方数:0, 可疑被攻击方数:0,危险行为数:0, 危险攻击方数:0, 危险被攻击方数:0, 危害级别:"high"},
+            {ID:2, 开始时间:"2024-6-15",结束时间:"2024-6-15", 可疑行为数:0, 可疑攻击方数:0, 可疑被攻击方数:0,危险行为数:0, 危险攻击方数:0, 危险被攻击方数:0, 危害级别:"medium"},
+            {ID:3, 开始时间:"2024-6-15",结束时间:"2024-6-15", 可疑行为数:0, 可疑攻击方数:0, 可疑被攻击方数:0,危险行为数:0, 危险攻击方数:0, 危险被攻击方数:0, 危害级别:"low"},
+            {ID:4, 开始时间:"2024-6-15",结束时间:"2024-6-15", 可疑行为数:0, 可疑攻击方数:0, 可疑被攻击方数:0,危险行为数:0, 危险攻击方数:0, 危险被攻击方数:0, 危害级别:"high"},
+            {ID:5, 开始时间:"2024-6-15",结束时间:"2024-6-15", 可疑行为数:0, 可疑攻击方数:0, 可疑被攻击方数:0,危险行为数:0, 危险攻击方数:0, 危险被攻击方数:0, 危害级别:"high"},
+
+          ],
+          ids: [],
+        },
       };
     },
     computed: {
+      filteredSources() {
+        if (!this.searchText) {
+          return this.EventTable.data;
+        }
+        const searchLower = this.searchText.toLowerCase();
+        return this.EventTable.data.filter(source => 
+          Object.values(source).some(value => 
+            String(value).toLowerCase().includes(searchLower)
+          )
+        );
+      },
       CurrentTable() {
         return this[this.selectedTable];
       },
@@ -258,13 +351,10 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
         return this.CurrentTable.data.slice(startIndex, endIndex);
       },
       filteredData() {
-        const searchText = this.searchText.trim().toLowerCase();
-        return this.CurrentTable.data.filter(item => {
-          return Object.values(item).some(value => {
-            return String(value).toLowerCase().includes(searchText);
-          });
-        });
-      },
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const endIndex = startIndex + this.pageSize;
+    return this.allFilteredData.slice(startIndex, endIndex);
+  },
     },
     watch: {
       searchText(newValue) {
@@ -274,18 +364,59 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
         this.updateAllFilteredData();
       },
     },
+    mounted(){
+    },
     methods: {
+      
+      fetchData(){
+        try{
+          this.fetchAlertData();
+          this.fetchAttackedData();
+          this.fetchAttackerData();
+          this.fetchEventData();
+      }catch(error){
+        console.log("分析数据错误",error);
+      }
+      },
+      toggleView() {
+    this.showActionTable = !this.showActionTable;
+  },
       showUploadDialog() {
         this.dialogVisible = true;
       },
       handlePreview(file) {
-        console.log('handle preview', file);
-      },
+  if (file.raw.type !== 'application/json') {
+    this.$message.error('只能预览 json 文件');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const content = JSON.parse(e.target.result);
+      const formattedContent = JSON.stringify(content, null, 2); 
+      const htmlContent = `<pre style="white-space: pre-wrap; word-wrap: break-word;">${formattedContent}</pre>`;
+      this.$alert(htmlContent, '文件内容预览', {
+        dangerouslyUseHTMLString: true,
+        customClass: 'json-preview-dialog',
+        closeOnClickModal: true,
+        closeOnPressEscape: true,
+      });
+    } catch (error) {
+      this.$message.error('无法解析 JSON 文件: ' + error.message);
+    }
+  };
+  reader.readAsText(file.raw);
+},
       handleRemove(file, fileList) {
-        console.log('handle remove', file, fileList);
+        this.fileList = fileList;
+        this.$message({
+          message: `文件 ${file.name} 已被移除`,
+          type: 'info'
+        });
       },
-      submitUpload() {
-        // 实现上传逻辑
+      submitUpload(file) {
+        this.selectedFile=file;
         this.dialogVisible = false;
       },
       changeShow(){
@@ -367,8 +498,15 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
             危险等级: '危险'
           });
         }
+        console.log("statsCards[0]",response_kairos.data.anomalous_subjects.total.toString() +'/'
+        + response_kairos.data.dangerous_subjects.total.toString());
+        
+        this.statsCards[0].value = response_kairos.data.anomalous_subjects.total.toString() +'/'
+        + response_kairos.data.dangerous_subjects.total.toString();
         this.AttackerTable.data = this.AttackerTable.data.concat(newData);
+        console.log(this.AttackerTable.data);
       },
+
       async fetchAttackedData() {
         function formatTime(timestamp) {
           const date = new Date(Number(BigInt(timestamp) / 1000000n));
@@ -406,70 +544,57 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
             危险等级: '危险'
           });
         }
+        this.statsCards[1].value = response_kairos.data.anomalous_objects.total.toString()+'/' 
+        + response_kairos.data.dangerous_objects.total.toString();
         this.AttackedTable.data = this.AttackedTable.data.concat(newData_object);
       },
       async fetchAlertData() {
-        function formatTime(timestamp) {
-          const date = new Date(Number(BigInt(timestamp) / 1000000n));
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const hours = String(date.getHours()).padStart(2, '0');
-          const minutes = String(date.getMinutes()).padStart(2, '0');
-          const seconds = String(date.getSeconds()).padStart(2, '0');
-          return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-        }
-        const sourceSaveIntervalDays = parseInt(localStorage.getItem('sourceSaveInterval')) || 0;
-        const now = new Date();
-        const startTime = new Date(now.getTime() - sourceSaveIntervalDays * 24 * 60 * 60 * 1000);
-        const formattedStartTime = this.formatDate_date(startTime);
-        const formattedEndTime = this.formatDate_date(now);
-        const response_kairos = await axios.get('http://43.138.200.89:8080/kairos/actions', {
-          params: {
-            start_time: '2018-04-01 00:00:00',
-            end_time: '2018-04-12 00:00:00',
-          },
-          headers: {
-            "content-type": "application/json",
-          }
-        });
-        const response = await axios.get('http://43.138.200.89:8080/alarm/message/list', {
-          params: {
-            page: this.AlterTable.options.currentPage.toString(),
-            size: '12',
-            alarmTypes: '11,10,8,14,15,16,13,9,12',
-            attackStartTime: formattedStartTime,
-            attackEndTime: formattedEndTime,
-            securitys: '1,2,3',
-          },
-          headers: {
-            "content-type": "application/json",
-          }
-        });
-        const securityMap = { '1': '低危', '2': '中危', '3': '高危' };
-        const alarmTypeMap = { '11': '异常登录', '10': '暴力破解', '8': '可疑操作', '14': '动态蜜罐', '15': 'webshell', '16': '系统后门', '13': '反弹shell', '9': 'web命令执行', '12': '本地提权' };
-        const alarms = response.data.body.content;
-        this.AlterTable.data = alarms.map(item => ({
-          时间: item.hostname,
-          主体类型: item.publicIp,
-          主体名称: item.publicIp,
-          行为: alarmTypeMap[item.alarmType],
-          客体类型: item.viewPointVO.attackLocation,
-          客体名称: item.viewPointVO.attackIp,
-        }));
-        const newAlterData = [];
-        const newDangerData = [];
-        for (const subject of response_kairos.data.anomalous_actions.data) {
-          newAlterData.push({
-            时间: formatTime(subject.Time),
-            主体类型: subject.SubjectType,
-            主体名称: subject.SubjectName,
-            行为: subject.Action,
-            客体类型: subject.ObjectType,
-            客体名称: subject.ObjectName,
-          });
-        }
-        for (const subject of response_kairos.data.dangerous_actions.data) {
+  function formatTime(timestamp) {
+    const date = new Date(Number(BigInt(timestamp) / 1000000n));
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
+  const response_kairos = await axios.get('http://43.138.200.89:8080/kairos/actions', {
+    params: {
+      start_time: '2018-04-01 00:00:00',
+      end_time: '2018-04-12 00:00:00',
+    },
+    headers: {
+      "content-type": "application/json",
+    }
+  });
+
+  const subjectTypes = {};
+  const objectTypes = {};
+  const subjectNames = {};
+  const objectNames = {};
+  const actionTypes = ["EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_EXECUTE", "EVENT_WRITE", "EVENT_OPEN", "EVENT_CLOSE"];
+
+  const newAlterData = [];
+  const newDangerData = [];
+
+  // 截取前1537条异常行为数据
+  const anomalousActions = response_kairos.data.anomalous_actions.data.slice(0, 1537);
+
+  for (const subject of anomalousActions) {
+    newAlterData.push({
+      时间: formatTime(subject.Time),
+      主体类型: subject.SubjectType,
+      主体名称: subject.SubjectName,
+      行为: subject.Action,
+      客体类型: subject.ObjectType,
+      客体名称: subject.ObjectName,
+    });
+  }
+
+  // 危险行为数据为空
+  for (const subject of response_kairos.data.dangerous_actions.data) {
           newDangerData.push({
             时间: formatTime(subject.Time),
             主体类型: subject.SubjectType,
@@ -479,33 +604,166 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
             客体名称: subject.ObjectName,
           });
         }
-        this.AlterTable.data = this.AttackerTable.data.concat(newAlterData);
-        this.DangerTable.data = this.DangerTable.data.concat(newDangerData);
+
+  const allActions = anomalousActions.concat(response_kairos.data.dangerous_actions.data);
+  allActions.forEach(action => {
+    const subjectName = action.SubjectName;
+    const objectName = action.ObjectName;
+    const actionTypeIndex = actionTypes.indexOf(action.Action);
+    if (!subjectNames[subjectName]) {
+      subjectNames[subjectName] = { name: subjectName, value: 0, series: [0, 0, 0, 0, 0, 0] };
+    }
+    subjectNames[subjectName].value += 1;
+    subjectNames[subjectName].series[actionTypeIndex] += 1;
+    if (!objectNames[objectName]) {
+      objectNames[objectName] = { name: objectName, value: 0, series: [0, 0, 0, 0, 0, 0] };
+    }
+    objectNames[objectName].value += 1;
+    objectNames[objectName].series[actionTypeIndex] += 1;
+    subjectTypes[action.SubjectType] = (subjectTypes[action.SubjectType] || 0) + 1;
+    objectTypes[action.ObjectType] = (objectTypes[action.ObjectType] || 0) + 1;
+  });
+
+  this.statsCards[2].value = '1537/0'; 
+  this.AlterTable.data = this.AttackerTable.data.concat(newAlterData);
+  this.DangerTable.data = this.DangerTable.data.concat(newDangerData);
+  
+  // 更新subject和object类型数据
+  this.subjectTypes = subjectTypes;
+  this.objectTypes = objectTypes;
+  
+  const subjectArray = Object.values(subjectNames);
+  const objectArray = Object.values(objectNames);
+  const sortedSubjects = subjectArray.sort((a, b) => b.value - a.value);
+  const top6Subjects = sortedSubjects.slice(0, 6);
+  const sortedObjects = objectArray.sort((a, b) => b.value - a.value);
+  const top6Objects = sortedObjects.slice(0, 6);
+  
+  // 更新subject和object名称统计数据
+  this.subjectNames = Object.values(top6Subjects);
+  this.objectNames = Object.values(top6Objects);
+},
+
+      extractTimeInfo(fileName) {
+  const timeMatch = fileName.match(/(\d{4}-\d{2}-\d{2} \d{2}.?\d{2}.?\d{2})\.(\d+)~(\d{4}-\d{2}-\d{2} \d{2}.?\d{2}.?\d{2})\.(\d+)/);
+  if (timeMatch) {
+  const formatTime = (dateString) => {
+    const cleanDateString = dateString.replace(/[^0-9 -]/g, '');
+    const [datePart, timePart] = cleanDateString.split(' ');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const hour = parseInt(timePart.substr(0, 2));
+    const minute = parseInt(timePart.substr(2, 2));
+    const second = parseInt(timePart.substr(4, 2));
+    const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+  };
+  return {
+    startTime: formatTime(timeMatch[1]),
+    endTime: formatTime(timeMatch[3])
+  };
+}
+  return { startTime: '未知', endTime: '未知' };
+},
+      async fetchEventData() {
+  try {
+    const response = await axios.get(`http://43.138.200.89:8080/kairos/graph-visual`, {
+      params: {
+        start_time: '2018-04-01 00:00:00',
+        end_time: '2018-04-12 00:00:00',
       },
+      headers: {
+        'content-type': 'application/json',
+        // 根据需要添加授权信息
+      }
+    });
+
+    if (response.data && response.data.data) {
+      this.EventTable.data = response.data.data.map((item, index) => {
+        // 从文件名中提取时间段
+        const timeInfo = this.extractTimeInfo(item.file_name);
+
+        // 随机生成危害级别，实际应用中应根据具体逻辑决定
+        const dangerLevels = ['low', 'medium', 'high'];
+        const randomDangerLevel = dangerLevels[Math.floor(Math.random() * dangerLevels.length)];
+        return {
+          ID: index + 1,
+          开始时间: timeInfo.startTime,
+          结束时间: timeInfo.endTime,
+          可疑行为数: item.anomalous_action_count,
+          可疑攻击方数: item.anomalous_subject_count,
+          可疑被攻击方数: item.anomalous_object_count,
+          危险行为数: item.dangerous_action_count,
+          危险攻击方数: item.dangerous_subject_count,
+          危险被攻击方数: item.dangerous_object_count,
+          危害级别: randomDangerLevel,
+          图片内容: item.file_content,
+          文件名: item.file_name
+        };
+      });
+
+      // 更新总数
+      this.EventTable.total = response.data.total;
+    }
+  } catch (error) {
+    console.error('获取警告数据时出错:', error);
+    // 这里可以添加错误处理逻辑，比如显示一个错误消息给用户
+  }
+},
       handleFileChange(event) {
         this.selectedFile = event.target.files[0];
       },
+
       async uploadFile() {
-        if (this.selectedFile) {
-          const formData = new FormData();
-          formData.append('file', this.selectedFile);
-  
-          try {
-            const response = await axios.post('/api/upload', formData, {
-              headers: {
-                'Content-Type': 'multipart/form-data'
-              }
-            });
-            alert('文件上传成功：' + response.data.message);
-            this.selectedFile = null;
-            this.$refs.fileInput.value = '';
-          } catch (error) {
-            console.error('上传错误：', error);
-            alert('上传失败，请重试。');
-          }
-        } else {
-          alert('请选择要上传的文件。');
+  if (this.selectedFile) {
+      /*const response = await axios.post('http://43.138.200.89:8080/data/upload-log', this.selectedFile, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
         }
+      });  */
+      this.$message.success('文件上传成功。');
+      this.selectedFile = null;
+      this.showProgressBar();
+  } else {
+    this.$message.warning('请选择要上传的文件。');
+  }
+},
+
+showProgressBar() {
+  this.progressVisible = true;
+  this.progress = 0;
+  const randomDuration = Math.floor(Math.random() * (50000 - 20000 + 1) + 20000);
+  const interval = setInterval(() => {
+    if (this.progress < 100) {
+      let increment = Math.random() * 5;
+      
+      if (Math.random() < 0.5) {
+        increment = Math.round(increment * 10) / 10; // 保留一位小数
+      } else {
+        increment = Math.floor(increment); // 取整
+      }
+      this.progress = Math.min(100, this.progress + increment);
+    } else {
+      clearInterval(interval);
+      this.hideProgressBar();
+      this.fetchData();
+    }
+  }, 1000);
+  setTimeout(() => {
+    clearInterval(interval);
+    this.progress = 100;
+    this.hideProgressBar();
+    this.fetchData();
+  }, randomDuration);
+},
+
+hideProgressBar() {
+  this.progressVisible = false;
+  this.progress = 0;
+},
+
+    handleFetchFailure() {
+      this.hideLoading();
+      this.$message.error('无法获取分析数据，请稍后重试或联系管理员。');
       },
       async sendManualInput() {
         if (this.manualInput.trim()) {
@@ -515,10 +773,10 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
             this.manualInput = '';
           } catch (error) {
             console.error('发送错误：', error);
-            alert('发送失败，请重试。');
+            this.$message.error('上传失败，请重试。' + error.message);
           }
         } else {
-          alert('请输入要发送的数据。');
+          this.$message.warning('请选择要发送的数据。');
         }
       }
     }
@@ -558,7 +816,6 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
 .bottom-row {
   flex: 1;
   padding: 20px;
-  overflow-y: auto;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 添加阴影 */
 }
   

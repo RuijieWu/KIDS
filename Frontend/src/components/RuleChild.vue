@@ -39,7 +39,7 @@
         color: white"
         rows="3" placeholder="输入规则" 
         v-model="displayMultilineText" 
-        @input="updateMultilineText">
+        @input="updateMultilineText($event.target.value)">
         </textarea>
       </div>
     </div>
@@ -200,7 +200,26 @@
         
         this.$emit('update:rule', { ...this.ruleData });
        try {
-         const response = await axios.post('http://43.138.200.89:8080/blacklist/set-blacklist', this.ruleData.multilineText);
+        console.log('发送内容',this.ruleData.multilineText);
+        const ruleMessage = {
+          ruleName: this.ruleData.ruleName,
+          warnLevel: this.ruleData.warnLevel,
+          ruleMessage: this.ruleData.ruleMessage,
+          deleted: false  
+    };
+    const dataToSend = `${this.ruleData.multilineText}
+{
+  "ruleMessgae":[
+    {
+      "ruleName": ${this.ruleData.ruleName}
+      "warnLevel":${this.ruleData.warnLevel}
+      "ruleMessage":${this.ruleData.ruleMessage}
+      "deleted":fasle
+    }
+  ]
+}`;
+    console.log(dataToSend);
+         const response = await axios.post('http://43.138.200.89:8080/blacklist/set-blacklist', dataToSend);
          const responseTest = await axios.get('http://43.138.200.89:8080/blacklist/get-blacklist', {
                 params: {
                 },

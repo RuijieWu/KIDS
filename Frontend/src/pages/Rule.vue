@@ -1,11 +1,16 @@
 <template>
 <div class="main-container">
+  <div class="d-flex justify-content-end mb-3">
+      <el-button @click="toggleView" type="primary">
+        {{ showTable ? '显示规则' : '显示表格' }}
+      </el-button>
+    </div>
   <div class="rule-engine" v-if="!showTable">
     <div class="d-flex justify-content-end">
       <el-button @click="showUploadDialog" type="primary" class="mr-3 btn btn-primary mt-3">导入规则</el-button>
-      <button class="btn btn-primary mt-3" @click="addEmptyRule">添加新规则</button>
+      <button class="btn btn-primary mt-3 mr-3" @click="addEmptyRule">添加新规则</button>
     </div>
-    <div class="col-12 ">
+    <div class="col-12 mb-2">
       <rule-child v-for="(rule,index) in rules" 
       :key="index" 
       :rule="rule"  
@@ -14,7 +19,7 @@
       @delete="deleteRule"
       @updateRules="updateRules"/>
     </div>
-    <div><button @click="clearLocalStorage">清空本地存储</button>
+    <div v-if="true"><button @click="clearLocalStorage">清空本地存储</button>
       <button @click="showLocalStorage">显示本地存储</button>
     </div>
     <el-dialog :visible.sync="dialogVisible" title="选择文件并上传" width="50%" :modal-append-to-body="false">
@@ -41,54 +46,39 @@
             </span>
           </el-dialog>
           </div>
-    <div class="table" v-if="showTable">
-      <div>
-    <div class="col-12">
-    <div class="table-header">
-    <div class="table-selector">
-      <label for="tableSelect">选择表格:</label>
-      <select id="tableSelect" v-model="selectedTable" class="form-select">
-        <option value="AttackerTable">攻击源列表</option>
-        <option value="AttackedTable">被攻击方列表</option>
-        <option value="AlterTable">可疑行为列表</option>
-        <option value="DangerTable">危险行为列表</option>
-      </select>
-      </div>
-      <div class="search-bar" >
-      <input v-model="searchText" type="text" placeholder="搜索..." class="form-control" />
-      <p-button class="search-btn ti-search"></p-button>
-    </div>
-    </div>
-    </div>
-      <div class="col-12" v-if="CurrentTable">
-      <card :title="CurrentTable.title" :subTitle="CurrentTable.subTitle" v-if="CurrentTable">
-        <div slot="raw-content" class="table">
-          <paper-table 
-            :data="filteredData" 
-            :columns="CurrentTable.columns">
-          </paper-table>
+          <div v-else class="table">
+      <div class="col-12 d-flex justify-content-end">
+        <div class="table-header col-3">
+          <div class="search-bar mb-2">
+            <input v-model="searchText" type="text" placeholder="搜索..." class="form-control" />
+            <p-button class="search-btn ti-search ml-2"></p-button>
+          </div>
         </div>
-      </card>
-      
-      <div class="page_button" style="display: flex; justify-content: space-between; align-items: center;">
-        <p-button type="info" round @click.native="handlePrevPage" style="margin-right: 10px;" >上一页</p-button>
-      <span>第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
-      <p-button  type="info" round @click.native="handleNextPage" style="margin-left: 10px;" >下一页</p-button>
-    </div>
+      </div>
+      <div class="col-12">
+        <card :title="tableData.title" :subTitle="tableData.subTitle">
+          <div slot="raw-content" class="table">
+            <paper-table 
+              :data="filteredData" 
+              :columns="tableData.columns">
+            </paper-table>
+          </div>
+        </card>
+        
+        <div class="page_button" style="display: flex; justify-content: space-between; align-items: center;">
+          <p-button type="info" round @click.native="handlePrevPage" style="margin-right: 10px;">上一页</p-button>
+          <span>第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
+          <p-button type="info" round @click.native="handleNextPage" style="margin-left: 10px;">下一页</p-button>
+        </div>
+      </div>
     </div>
   </div>
-        </div>
-        </div>
   </template>
   <script>
   import { StatsCard, ChartCard,PaperTable } from "@/components/index";
   import Chartist from "chartist";
   import RuleChild from "@/components/RuleChild.vue"
   import axios from 'axios';
-  const AttackerTableColumns = ["时间","类型","名称","危险等级"];
-const AttackedTableColumns = ["时间","类型","名称","危险等级"];
-const AlterTableColumns = ["时间","主体类型","主体名称","行为","客体类型","客体名称"]
-const DangerTableColumns = ["时间","主体类型","主体名称","行为","客体类型","客体名称"]
   export default {
     components:{
       RuleChild,
@@ -98,101 +88,96 @@ const DangerTableColumns = ["时间","主体类型","主体名称","行为","客
       Chartist,
     },
     data() {
-    return {
-      fileList: [],
-      dialogVisible: false,
-      searchText: '',
-      rules: JSON.parse(localStorage.getItem('rules')) || [
-        {ruleName:"sql注入",ruleMessage:"1号",multilineText: '',enable:true,warnLevel:"high",deleted: false}, 
-        {ruleName:"55555",ruleMessage:"2号",multilineText: '',enable:true,warnLevel:"low",deleted: false},
-        {}
+  return {
+    allFilteredData: [],
+    fileList: [],
+    dialogVisible: false,
+    searchText: '',
+    showTable: false,  // 控制是否显示表格
+    rules: JSON.parse(localStorage.getItem('rules')) || [
+      {ruleName:"sql注入", ruleMessage:"1号", multilineText: '', enable:true, warnLevel:"high", deleted: false}, 
+      {ruleName:"55555", ruleMessage:"2号", multilineText: '', enable:true, warnLevel:"low", deleted: false},
+      {}
+    ],
+    tableData: {
+      title: "预警列表",
+      subTitle: "",
+      columns: ["ID", "创建时间", "更新时间", "目标名称","目标类型"],
+      data: [
+        { ID:0,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
+        { ID:0,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
+        { ID:0,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
+        { ID:0,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
+        { ID:0,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
+        { ID:0,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
+        { ID:0,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
+        { ID:0,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
+        { ID:0,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
+        { ID:0,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
+        { ID:0,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
+        { ID:0,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
+        { ID:11,创建时间: "2024-07-17 10:00", 更新时间: "IP", 目标名称: "192.168.1.1", 目标类型: "高" },
       ],
-      AttackerTable: {
-          title: "攻击源列表",
-          subTitle: "",
-          columns: [...AttackerTableColumns],
-          data: [],
-          options: {
-            pageSize: 10,
-            currentPage: 1,
-          }
-        },
-        AttackedTable: {
-          title: "被攻击方列表",
-          subTitle: "",
-          columns: [...AttackedTableColumns],
-          data: [],
-          options: {
-            pageSize: 10,
-            currentPage: 1,
-          }
-        },
-        AlterTable: {
-          title: "可疑行为列表",
-          subTitle: "",
-          columns: [...AlterTableColumns],
-          data: [],
-          options: {
-            pageSize: 10,
-            currentPage: 2,
-          }
-        },
-        DangerTable: {
-          title: "危险行为列表",
-          subTitle: "",
-          columns: [...DangerTableColumns],
-          data: [],
-          options: {
-            pageSize: 10,
-            currentPage: 1,
-          }
-        }
+      options: {
+        pageSize: 10,
+        currentPage: 1,
+      }
     }
-  },
+  }
+},
   computed:{
-    CurrentTable() {
-        return this[this.selectedTable];
-      },
-      currentPage() {
-        return this.CurrentTable.options.currentPage;
-      },
-      pageSize() {
-        return this.CurrentTable.options.pageSize || 6;
-      },
-      totalItems() {
-        return this.allFilteredData.length || 0;
-      },
-      totalPages() {
-        return Math.ceil(this.totalItems / this.pageSize) || 1;
-      },
-      currentPageData() {
-        const startIndex = (this.currentPage - 1) * this.pageSize;
-        const endIndex = startIndex + this.pageSize;
-        return this.CurrentTable.data.slice(startIndex, endIndex);
-      },
-      filteredData() {
-        const searchText = this.searchText.trim().toLowerCase();
-        return this.CurrentTable.data.filter(item => {
-          return Object.values(item).some(value => {
-            return String(value).toLowerCase().includes(searchText);
-          });
-        });
-      },
+    currentPage() {
+    return this.tableData.options.currentPage;
+  },
+  pageSize() {
+    return this.tableData.options.pageSize;
+  },
+  totalItems() {
+    return this.allFilteredData.length;
+  },
+  totalPages() {
+    return Math.ceil(this.totalItems / this.pageSize) || 1;
+  },
+  filteredData() {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const endIndex = startIndex + this.pageSize;
+    return this.allFilteredData.slice(startIndex, endIndex);
+  },
   },
   mounted() {
+    this.fetchBlackList();
     if (!localStorage.getItem('rules')) {
       this.saveRules(); // 如果本地存储中没有数据，则保存默认数据
     }
   },
+  watch: {
+  searchText(newValue) {
+    this.updateAllFilteredData();
+  },
+},
   methods: {
+    updateAllFilteredData() {
+    console.log("过滤数据",this.allFilteredData);
+    const searchText = this.searchText.trim().toLowerCase();
+    if (!searchText) {
+      this.allFilteredData = this.tableData.data;
+      console.log("过滤数据",this.allFilteredData);
+    } else {
+      this.allFilteredData = this.tableData.data.filter(item => {
+        return Object.values(item).some(value => {
+          return String(value).toLowerCase().includes(searchText);
+        });
+      });
+    }
+  },
+    toggleView() {
+    this.showTable = !this.showTable;
+    if(this.showTable){
 
+    }
+  },
 
     handlePreview(file) {
-  if (file.raw.type !== 'application/yaml') {
-    this.$message.error('只能预览 yaml 文件');
-    return;
-  }
-
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
@@ -272,7 +257,7 @@ readFileAsJSON(file) {
         const importedRule = JSON.parse(e.target.result);
         resolve({ success: true, data: importedRule, fileName: file.name });
       } catch (error) {
-        resolve({ success: false, error: '文件不是有效的JSON格式', fileName: file.name });
+        resolve({ success: false, error: '文件不是有效的yaml格式', fileName: file.name });
       }
     };
     reader.readAsText(file);
@@ -331,11 +316,26 @@ importRule(rule) {
     console.error('未找到对应的规则');
     return;
   }
-  console.log(this.rules);
   const deletedRule = this.rules[ruleIndex];
-  console.log(ruleIndex,deletedRule);
-  console.log(JSON.parse(localStorage.getItem('rules')));
+  deletedRule.deleted = true;
+  const dataToSend = `${deletedRule.multilineText}
+{
+  "ruleMessgae":[
+    {
+      "ruleName": ${deletedRule.ruleName}
+      "warnLevel":${deletedRule.warnLevel}
+      "ruleMessage":${deletedRule.ruleMessage}
+      "deleted":true
+    }
+  ]
+}`;
   this.rules.splice(ruleIndex, 1);
+  try{
+  const response = await axios.post('http://43.138.200.89:8080/blacklist/set-blacklist', dataToSend);
+  console.log('规则成功发送到后端:', response.data);
+}catch(error){
+  console.log(error);
+}
   console.log(this.rules);
   this.removeRuleFromLocalStorage(ruleId);
   this.saveRules();
@@ -383,10 +383,45 @@ saveRules() {
       // 更新 rules 数据，重新从本地存储中加载
       this.loadRules();
     },
+    handlePrevPage() {
+      if (this.tableData.options.currentPage > 1) {
+        this.tableData.options.currentPage--; 
+      }
+    },
+    handleNextPage() {
+      if (this.tableData.options.currentPage < this.totalPages) {
+        this.tableData.options.currentPage++; 
+      }
+    },
+    async fetchBlackList() {
+    try {
+      const response = await axios.get('http://43.138.200.89:8080/blacklist/get-blacklist');
+      const blackList = response.data.slice(0, 1537); // 假设你想限制返回的数据数量为1537
+      const newTableData = [];
+      
+      for (const item of blackList) {
+        newTableData.push({
+          ID: item.ID,
+          创建时间: this.formatTime(item.CreatedAt),
+          更新时间: this.formatTime(item.UpdatedAt),
+          目标名称: item.TargetName,
+          目标类型: item.TargetType
+        });
+      }
+      
+      this.tableData.data = newTableData;
+      this.updateAllFilteredData(); // 更新过滤后的数据
+    } catch (error) {
+      console.error('获取黑名单告警失败:', error);
+    }
+  },
   }
 }
   </script>
   <style>
+.rule-engine{
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
 .search-bar {
   display: flex;
   align-items: center;
