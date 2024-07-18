@@ -40,8 +40,6 @@ type AgentInfo struct {
 // List of agent IPs
 var agentIPs = []string{
 	"localhost:8010",
-	"localhost:8020",
-	"localhost:8030",
 }
 
 func SetupAudit(c *gin.Context) {
@@ -225,4 +223,30 @@ func GetAgentInfo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, results)
+}
+
+// read a 'json' type Events struct from any type of file and insert to database
+func UploadLog(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer src.Close()
+
+	// parse to type Events struct and insert to database
+	events := Events{}
+	if err := json.NewDecoder(src).Decode(&events); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	InsertEvents(events)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Successfully uploaded and inserted the logs"})
 }
