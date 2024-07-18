@@ -40,8 +40,6 @@ type AgentInfo struct {
 // List of agent IPs
 var agentIPs = []string{
 	"localhost:8010",
-	"localhost:8020",
-	"localhost:8030",
 }
 
 func SetupAudit(c *gin.Context) {
