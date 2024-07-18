@@ -25,11 +25,11 @@
     </div>
 
     <!--Charts-->
-    <div class="row">
-  <div class="col-md-8 col-12">
+    <div class="col-12">
     <chart-card
       title="警报日期分布"
       sub-title="7天内数据"
+      :chartLibrary="chartist"
       :chart-data="usersChart.data"
       :chart-options="usersChart.options"
     >
@@ -44,10 +44,13 @@
         <i class="fa fa-circle text-warning"></i> 危险
       </div>
     </chart-card>
-
+  </div>
+    <div class="row">
+      <div class="col-8">
     <chart-card
       title="警报时间分布"
       sub-title="24小时内"
+      :chartLibrary="chartist"
       :chart-data="activityChart.data"
       :chart-options="activityChart.options"
     >
@@ -62,11 +65,11 @@
       </div>
     </chart-card>
   </div>
-
-  <div class="col-md-4 col-12">
+  <div class="col-md-4">
     <chart-card
       title="警报类型统计"
       sub-title="今日内"
+      :chartLibrary="chartist"
       :chart-data="preferencesChart.data"
       chart-type="Pie"
     >
@@ -76,11 +79,51 @@
           </p-button></span
       >
       <div slot="legend">
-        <i class="fa fa-circle text-info"></i> 低危
-        <i class="fa fa-circle text-danger"></i> 中危
-        <i class="fa fa-circle text-warning"></i> 高危
+        <i class="fa fa-circle text-info"></i> 可疑
+        <i class="fa fa-circle text-danger"></i> 危险
       </div>
     </chart-card>
+  </div>
+</div>
+<div class="row">
+  <div class="col-4">
+    <chart-card
+      title="被攻击方类型"
+      chartLibrary="echarts"
+      :chartData="objectTypes"
+      chart-type="Pie"
+    />
+  </div>
+  <div class="col-8">
+  <chart-card
+  title="最多次被攻击方"
+  sub-title="演示数据"
+  chartLibrary="echarts"
+  chartType="Bar"
+  :chartData="objectNames"
+/>
+</div>
+</div>
+<div class="row">
+  <div class="col-4">
+    <chart-card
+      title="攻击方类型"
+      chartLibrary="echarts"
+      :chartData="subjectTypes"
+      chart-type="Pie"
+    />
+  </div>
+  <div class="col-8">
+  <chart-card
+  title="最多次攻击方"
+  sub-title="演示数据"
+  chartLibrary="echarts"
+  chartType="Bar"
+  :chartData="subjectNames"
+/>
+</div>
+</div>
+<div class="col-12">
     <card :title="warningTable.title" :subTitle="warningTable.subTitle">
       <div slot="raw-content" class="warning_table">
     <paper-table :data="currentPageData" :columns="warningTable.columns"  >
@@ -93,13 +136,12 @@
       <p-button type="info" round @click.native="handleNextPage" >下一页</p-button>
     </div>
   </div>
-</div>
+
 </div>
 </template>
 <script>
 
 import { StatsCard, ChartCard,PaperTable } from "@/components/index";
-import warn_table_child from "@/components/warn_table_child.vue"
 import Chartist from "chartist";
 import axios from "axios";
 export default {
@@ -107,7 +149,6 @@ export default {
     StatsCard,
     ChartCard,
     PaperTable,
-    warn_table_child
   },
   data() {
     return {
@@ -216,14 +257,18 @@ export default {
         data:[],
         title: "异常信息",
         subTitle: "",
-        columns: ["时间","客体类型","客体名称","危险等级"],
+        columns: ["时间","主体类型","客体名称","危险等级"],
         options:{
           height: "245px",
           pageSize: 6, // 每页显示 8 条数据
           currentPage: 1, // 当前页码
           
         }
-      }
+      },
+      subjectTypes: [{value:20,name:'netflow'},{value:30,name:'lsof'}],
+      objectTypes: [{value:30,name:'netflow'},{value:20,name:'lsof'}],
+      subjectNames:[{name:'',value:0,series:[0,0,0,0,0,0]}], /* series对应:EVENT_RECVFROM EVENT_SENDTO ,EVENT_EXECUTE ,EVENT_WRITE ,EVENT_OPEN ,EVENT_CLOSE*/
+      objectNames:[{name:'',value:0,series:[0,0,0,0,0,0]}],
     };
   },
   computed: {
@@ -437,6 +482,7 @@ async fetchActivityData() {
         // 更新 activityChart.data 中的数据
         this.activityChart.data.series[0] = todayCounts;
         this.activityChart.data.series[1] = yesterdayCounts;
+        this.activityChart.update();
     } catch (error) {
         console.error('获取活动数据失败：', error);
     }
@@ -520,41 +566,39 @@ async fetchChartData() {
         }
         
         const formattedDates = []; // 用于存储格式化后的日期时间
-        /*for (let i = 0; i < date_open.length; i++) {
-            const mmDd = date_open[i]; // 取出 MM-DD 格式的日期
-            const [month, day] = mmDd.split('-');// 分割月份和日期
-            const now = new Date();
-            const year = now.getFullYear();
-            const formattedDate = `${year}-${(`0${month}`).slice(-2)}-${(`0${day}`).slice(-2)} 00:00:00`;
-            formattedDates.push(formattedDate);
-          }*/
-        const kairosPromises = [];
-        const openPromises = [];
         var total_actions_anomalous = 0;
         var total_action_danger = 0;
+
+        const subjectTypes = {};
+        const objectTypes = {};
+        const subjectNames = {};
+        const objectNames = {};
+        const actionTypes = ["EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_EXECUTE", "EVENT_WRITE", "EVENT_OPEN", "EVENT_CLOSE"];
+
         for (let j = 1; j <= 3; j++) {
             for (let i = 0; i < 7; i++) {
                 const k = i * j;
                 const attackEndTime = formattedDates[7 - i];
                 const attackStartTime = formattedDates[6 - i];
                 const response_open = await axios.get('http://43.138.200.89:8080/alarm/alarm/list', {
-                        params: {
-                            page: '1',
-                            pageSize: '1',
-                            alarmTypes: '11,10,8,14,15,16,13,9,12',
-                            attackStartTime: attackStartTime,
-                            attackEndTime: attackEndTime,
-                            securitys: j.toString(),
-                            sign:'userchart'
-                        },
-                        headers: {
-                            "content-type": "application/json",
-                        }
-                    });
-                if(j==3){
-                const attackEndTime_kairos = formattedDates_kairos[7 - i];
-                const attackStartTime_kairos = formattedDates_kairos[6 - i];
-                const response_kairos = await axios.get('http://43.138.200.89:8080/kairos/actions', {
+                    params: {
+                        page: '1',
+                        pageSize: '1',
+                        alarmTypes: '11,10,8,14,15,16,13,9,12',
+                        attackStartTime: attackStartTime,
+                        attackEndTime: attackEndTime,
+                        securitys: j.toString(),
+                        sign:'userchart'
+                    },
+                    headers: {
+                        "content-type": "application/json",
+                    }
+                });
+
+                if(j == 3){
+                    const attackEndTime_kairos = formattedDates_kairos[7 - i];
+                    const attackStartTime_kairos = formattedDates_kairos[6 - i];
+                    const response_kairos = await axios.get('http://43.138.200.89:8080/kairos/actions', {
                         params: {
                             page: '1',
                             pageSize: '1',
@@ -567,45 +611,62 @@ async fetchChartData() {
                         }
                     });
                     this.usersChart.data.series[0][6-i] += response_kairos.data.anomalous_actions.total;
-                    this.usersChart.data.series[1][6-i] += response_kairos.data.dangerous_actions.total +response_open.data.body.total;
+                    this.usersChart.data.series[1][6-i] += response_kairos.data.dangerous_actions.total + response_open.data.body.total;
                     total_actions_anomalous += response_kairos.data.anomalous_actions.total;
                     total_action_danger += response_kairos.data.dangerous_actions.total + response_open.data.body.total;
+
+                    // 统计当天（2018-04-12）的subject和object类型
+                    if (attackStartTime_kairos === "2018-04-06 00:00:00") {
+                        const allActions = response_kairos.data.anomalous_actions.data.concat(response_kairos.data.dangerous_actions.data);
+                        allActions.forEach(action => {
+                            const subjectName = action.SubjectName;
+                            const objectName = action.ObjectName;
+                            const actionTypeIndex = actionTypes.indexOf(action.Action);
+                            if (!subjectNames[subjectName]) {
+                                subjectNames[subjectName] = { name: subjectName, value: 0, series: [0, 0, 0, 0, 0, 0] };
+                            }
+                            subjectNames[subjectName].value += 1;
+                            subjectNames[subjectName].series[actionTypeIndex] += 1;
+                            if (!objectNames[objectName]) {
+                                objectNames[objectName] = { name: objectName, value: 0, series: [0, 0, 0, 0, 0, 0] };
+                            }
+                            objectNames[objectName].value += 1;
+                            objectNames[objectName].series[actionTypeIndex] += 1;
+
+                            subjectTypes[action.SubjectType] = (subjectTypes[action.SubjectType] || 0) + 1;
+                            objectTypes[action.ObjectType] = (objectTypes[action.ObjectType] || 0) + 1;
+                        });
+                    }
+                } else {
+                    this.usersChart.data.series[0][6-i] += response_open.data.body.total;
+                    total_actions_anomalous += response_open.data.body.total;
+                }
             }
-            else{
-            this.usersChart.data.series[0][6-i] += response_open.data.body.total;
-            total_actions_anomalous+=response_open.data.body.total;
-            }
-          }
+            
         }
-        console.log(this.usersChart.data.series);
         this.statsCards[2].value = total_actions_anomalous.toString()+'/'+total_action_danger.toString();
-
-        /*let kairosIndex = 0;
-        let openIndex = 0;
-
-        for (let j = 1; j <= 3; j++) {
-            for (let i = 0; i < 7; i++) {
-                const response_open = openResponses[openIndex++];
-                const response_kairos = kairosResponses[kairosIndex++];
-                
-                const total_kairos = response_kairos.data.anomalous_actions.total + response_kairos.data.dangerous_actions.total;
-                const alarms = response_open.data.body.content;
-                const total_open = response_open.data.body.total ||0;
-
-                this.usersChart.data.series[j - 1][6 - i] = total_open + total_kairos;
-                console.log(response_open);
-                console.log(response_kairos);
-                total_actions_anomalous += response_kairos.data.anomalous_actions.total;
-                total_action_danger += response_kairos.data.dangerous_actions.total;
-            }
-        }*/
-
         const totalAlterToday = this.usersChart.data.series[0][5] + this.usersChart.data.series[1][5];
         this.preferencesChart.data.series[0] = Math.floor(this.usersChart.data.series[0][5] * 100 / totalAlterToday);
-        this.preferencesChart.data.series[1] = 100 - this.preferencesChart.data.series[0]
+        this.preferencesChart.data.series[1] = 100 - this.preferencesChart.data.series[0];
         this.preferencesChart.data.labels[0] = this.preferencesChart.data.series[0].toString() + '%';
         this.preferencesChart.data.labels[1] = this.preferencesChart.data.series[1].toString() + '%';
         this.preferencesChart.data.labels[2] = this.preferencesChart.data.series[2].toString() + '%';
+
+        // 更新subject和object类型数据
+        this.subjectTypes = subjectTypes;
+        this.objectTypes = objectTypes;
+        const subjectArray = Object.values(subjectNames);
+        const objectArray = Object.values(objectNames);
+        const sortedSubjects = subjectArray.sort((a, b) => b.value - a.value);
+        const top6Subjects = sortedSubjects.slice(0, 6);
+        const sortedObjects = objectArray.sort((a, b) => b.value - a.value);
+        const top6Objects = sortedObjects.slice(0, 6);
+
+        // 更新subject和object名称统计数据
+        this.subjectNames = Object.values(top6Subjects);
+        this.objectNames = Object.values(top6Objects);
+        this.usersChart.update();
+        this.preferencesChart.update();
     } catch (error) {
         this.error = '获取图表数据失败';
     } finally {
@@ -630,8 +691,6 @@ async fetchChartData() {
         params: {
           start_time: "2018-04-01 00:00:00",
           end_time: "2018-04-12 00:00:00",
-          page:1,
-          size:60
         },
         headers: {
       ' content-type':'application/json',

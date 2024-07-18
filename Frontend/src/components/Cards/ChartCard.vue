@@ -2,18 +2,14 @@
   <card>
     <template slot="header">
       <h4 v-if="$slots.title || title" class="card-title">
-        <slot name="title">
-          {{ title }}
-        </slot>
+        <slot name="title">{{ title }}</slot>
       </h4>
       <p class="card-category">
-        <slot name="subTitle">
-          {{ subTitle }}
-        </slot>
+        <slot name="subTitle">{{ subTitle }}</slot>
       </p>
     </template>
     <div>
-      <div :id="chartId" class="ct-chart"></div>
+      <div :id="chartId" class="chart-container"></div>
       <div class="footer">
         <div class="chart-legend">
           <slot name="legend"></slot>
@@ -27,17 +23,20 @@
     </div>
   </card>
 </template>
+
 <script>
 import Card from "./Card.vue";
+
 export default {
   name: "chart-card",
   components: {
     Card,
   },
   props: {
-    footerText: {
+    chartLibrary: {
       type: String,
-      default: "",
+      default: 'chartist',
+      validator: value => ['chartist', 'echarts'].includes(value)
     },
     title: {
       type: String,
@@ -51,76 +50,163 @@ export default {
       type: String,
       default: "Line", // Line | Pie | Bar
     },
-    chartOptions: {
-      type: Object,
-      default: () => {
-        return {};
-      },
-    },
     chartData: {
       type: Object,
-      default: () => {
-        return {
-          labels: [],
-          series: [],
-        };
-      },
+      required: true,
+    },
+    chartOptions: {
+      type: Object,
+      default: () => ({}),
     },
   },
   data() {
     return {
-      chartId: "no-id",
+      chartId: "chart-" + this._uid,
       chart: null,
     };
   },
   methods: {
-    /***
-     * Initializes the chart by merging the chart options sent via props and the default chart options
-     */
-    initChart(Chartist) {
-      const chartIdQuery = `#${this.chartId}`;
-      Chartist[this.chartType](chartIdQuery, this.chartData, this.chartOptions);
+    initChart() {
+      if (this.chartLibrary === 'chartist') {
+        this.initChartist();
+      } else if (this.chartLibrary === 'echarts') {
+        this.initECharts();
+      }
     },
-    /***
-     * Assigns a random id to the chart
-     */
-    updateChartId() {
-      const currentTime = new Date().getTime().toString();
-      const randomInt = this.getRandomInt(0, currentTime);
-      this.chartId = `div_${randomInt}`;
+    initChartist() {
+      import("chartist").then((Chartist) => {
+        let ChartistLib = Chartist.default || Chartist;
+        this.$nextTick(() => {
+          const chartIdQuery = `#${this.chartId}`;
+          this.chart = new ChartistLib[this.chartType](chartIdQuery, this.chartData, this.chartOptions);
+        });
+      });
     },
-    getRandomInt(min, max) {
-      return Math.floor(Math.random() * (max - min + 1)) + min;
+    initECharts() {
+      if (!this.chart) {
+        this.chart = this.$echarts.init(document.getElementById(this.chartId));
+      }
+      const option = this.createEChartsOption();
+      this.chart.setOption(option);
     },
-    updateChart(newData, newOptions) {
-      if (this.chart) {
-        this.chart.update(newData, newOptions);
+    createEChartsOption() {
+      const actionTypes = ["EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_EXECUTE", "EVENT_WRITE", "EVENT_OPEN", "EVENT_CLOSE"];
+      if (this.chartType === "Pie") {
+        return {
+          backgroundColor: '#ffffff',  
+          tooltip: {
+            trigger: 'item'
+          },
+          series: [
+            {
+              name: 'Types',
+              type: 'pie',
+              radius: '55%',
+              center: ['50%', '50%'],
+              data: Array.isArray(this.chartData) ? this.chartData : Object.entries(this.chartData).map(([name, value]) => ({ name, value })),
+              roseType: 'radius',
+              label: {
+                color: '#333' 
+              },
+              labelLine: {
+                lineStyle: {
+                  color: '#999' 
+                },
+                smooth: 0.2,
+                length: 10,
+                length2: 20
+              },
+              itemStyle: {
+                color: '#3498db',  
+                shadowBlur: 200,
+                shadowColor: 'rgba(0, 0, 0, 0.5)'
+              },
+              animationType: 'scale',
+              animationEasing: 'elasticOut',
+              animationDelay: function (idx) {
+                return Math.random() * 200;
+              }
+            }
+          ]
+        };
+      } else if (this.chartType === "Bar") {
+        return {
+          tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+              type: 'shadow'
+            }
+          },
+          legend: {},
+          grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+          },
+          xAxis: {
+            type: 'value'
+          },
+          yAxis: {
+            type: 'category',
+            data: this.chartData.map(item => item.name)  // 以subjectNames的name作为Y轴
+          },
+          series: this.chartData[0].series.map((_, index) => ({
+            name: actionTypes[index],
+            type: 'bar',
+            stack: 'total',
+            label: {
+              show: true
+            },
+            emphasis: {
+              focus: 'series'
+            },
+            data: this.chartData.map(item => item.series[index])  // 以subjectNames的series对应的数据作为值
+          }))
+        };
+      }
+    },
+    updateChart() {
+      if (this.chartLibrary === 'chartist' && this.chart) {
+        this.chart.update(this.chartData, this.chartOptions);
+      } else if (this.chartLibrary === 'echarts' && this.chart) {
+        const option = this.createEChartsOption();
+        this.chart.setOption(option);
       }
     },
   },
   watch: {
     chartData: {
-      handler(newData) {
-        this.updateChart(newData, this.chartOptions);
+      handler() {
+        this.updateChart();
       },
       deep: true
     },
     chartOptions: {
-      handler(newOptions) {
-        this.updateChart(this.chartData, newOptions);
+      handler() {
+        this.updateChart();
       },
       deep: true
     }
   },
   mounted() {
-    this.updateChartId();
-    import("chartist").then((Chartist) => {
-      let ChartistLib = Chartist.default || Chartist;
-      this.$nextTick(() => {
-        this.initChart(ChartistLib);
-      });
+    this.$nextTick(() => {
+      this.initChart();
     });
   },
+  beforeDestroy() {
+    if (this.chart) {
+      if (this.chartLibrary === 'echarts') {
+        this.chart.dispose();
+      }
+      this.chart = null;
+    }
+  }
 };
 </script>
-<style></style>
+
+<style scoped>
+.chart-container {
+  height: 300px;
+}
+</style>

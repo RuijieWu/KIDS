@@ -383,19 +383,38 @@
   },
 
 
-      /*async fetchReports() {
-  try {
-    const response = await axios.get(``);
-    this.reportData = response.data;
-    this.processNetworkData();
-  } catch (error) {
-    console.error('Error fetching reports:', error);
-    this.reportData = null;
-  }
-},*/
 async fetchReports() {
-    // 模拟 API 响应
-    const mockResponse = {
+
+  let startTime = new Date(this.source.开始时间.replace(/-/g, '/'));
+    let endTime = new Date(this.source.结束时间.replace(/-/g, '/'));
+
+    // 检查开始时间和结束时间是否相同
+    if (startTime.getTime() === endTime.getTime()) {
+      endTime.setSeconds(endTime.getSeconds() + 1); // 结束时间的秒数加1
+    }
+
+    // 格式化日期为 'YYYY-MM-DD HH:MM:SS' 字符串
+    const formatTime = date => {
+      const pad = num => (num < 10 ? '0' : '') + num;
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    };
+
+    const formattedStartTime = formatTime(startTime);
+    const formattedEndTime = formatTime(endTime);
+    this.source.结束时间 = formattedEndTime;
+    console.log(formattedStartTime,formattedEndTime);
+    const response_kairos = await axios.get('http://43.138.200.89:8080/kairos/actions', {
+        params: {
+          start_time: "2018-04-06 04:13:00",
+          end_time: "2018-04-06 04:15:00",
+        },
+        headers: {
+      ' content-type':'application/json',
+        }
+      });
+    this.reportData = response_kairos.data;
+    
+    /*const mockResponse = {
       data: {
         "anomalous_actions": {
           "data": [
@@ -466,7 +485,7 @@ async fetchReports() {
     };
 
     // 使用模拟数据
-    this.reportData = mockResponse.data;
+    this.reportData = mockResponse.data;*/
     this.AlterTable.data = this.reportData.anomalous_actions.data.map(action => ({
         时间: this.formatTime(action.Time),
         主体类型: action.SubjectType,
@@ -640,7 +659,6 @@ showNodeDetails(node) {
   },
 
 showEdgeDetails(edge) {
-  console.log('Edge data:', edge);  
   this.selectedEdge = {
     source: edge.source,
     target: edge.target,

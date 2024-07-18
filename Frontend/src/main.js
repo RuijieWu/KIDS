@@ -26,11 +26,12 @@ import { BootstrapVue, IconsPlugin } from 'bootstrap-vue'
 import 'element-ui/lib/theme-chalk/index.css';
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
-Vue.use(BootstrapVue)
+import * as echarts from 'echarts'
 
+Vue.prototype.$echarts = echarts
+Vue.use(BootstrapVue);
 Vue.use(ElementUI);
-// 可选: 安装 Bootstrap Vue 图标插件
-Vue.use(IconsPlugin)
+Vue.use(IconsPlugin);
 Vue.use(PaperDashboard);
 Vue.prototype.$axios = axios;
 /* eslint-disable no-new */

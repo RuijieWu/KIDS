@@ -9,7 +9,7 @@
         </div>
       </div>
       <div class="col-12">
-        <source-table :sources="filteredSources" :title="AlterTable.title"></source-table>
+        <source-table :sources="filteredSources" :title="EventTable.title"></source-table>
       </div>
     </div>
   </template>
@@ -24,15 +24,9 @@
     data() {
       return {
         searchText: '',
-        AlterTable: {
+        EventTable: {
           title: "警告信息",
           data:[
-            {ID:1, 开始时间:"2024-6-15",结束时间:"2024-6-15", 可疑行为数:0, 可疑攻击方数:0, 可疑被攻击方数:0,危险行为数:0, 危险攻击方数:0, 危险被攻击方数:0, 危害级别:"high"},
-            {ID:2, 开始时间:"2024-6-15",结束时间:"2024-6-15", 可疑行为数:0, 可疑攻击方数:0, 可疑被攻击方数:0,危险行为数:0, 危险攻击方数:0, 危险被攻击方数:0, 危害级别:"medium"},
-            {ID:3, 开始时间:"2024-6-15",结束时间:"2024-6-15", 可疑行为数:0, 可疑攻击方数:0, 可疑被攻击方数:0,危险行为数:0, 危险攻击方数:0, 危险被攻击方数:0, 危害级别:"low"},
-            {ID:4, 开始时间:"2024-6-15",结束时间:"2024-6-15", 可疑行为数:0, 可疑攻击方数:0, 可疑被攻击方数:0,危险行为数:0, 危险攻击方数:0, 危险被攻击方数:0, 危害级别:"high"},
-            {ID:5, 开始时间:"2024-6-15",结束时间:"2024-6-15", 可疑行为数:0, 可疑攻击方数:0, 可疑被攻击方数:0,危险行为数:0, 危险攻击方数:0, 危险被攻击方数:0, 危害级别:"high"},
-
           ],
           ids: [],
         },
@@ -41,10 +35,10 @@
     computed: {
       filteredSources() {
         if (!this.searchText) {
-          return this.AlterTable.data;
+          return this.EventTable.data;
         }
         const searchLower = this.searchText.toLowerCase();
-        return this.AlterTable.data.filter(source => 
+        return this.EventTable.data.filter(source => 
           Object.values(source).some(value => 
             String(value).toLowerCase().includes(searchLower)
           )
@@ -52,11 +46,11 @@
       },
     },
     mounted() {
-    this.fetchAlertData();
+    this.fetchEventData();
     const sourceUpdateIntervalMinutes = parseInt(localStorage.getItem('sourceUpdateInterval')) || 2;
     const sourceUpdateIntervalMilliseconds = sourceUpdateIntervalMinutes * 60 * 1000;
     setInterval(() => {
-      this.fetchAlertData();
+      this.fetchEventData();
     }, sourceUpdateIntervalMilliseconds);
   },
     methods: {
@@ -66,7 +60,7 @@
       },
 
 
-      async fetchAlertData() {
+      async fetchEventData() {
   try {
     const response = await axios.get(`http://43.138.200.89:8080/kairos/graph-visual`, {
       params: {
@@ -80,14 +74,13 @@
     });
 
     if (response.data && response.data.data) {
-      this.AlterTable.data = response.data.data.map((item, index) => {
+      this.EventTable.data = response.data.data.map((item, index) => {
         // 从文件名中提取时间段
         const timeInfo = this.extractTimeInfo(item.file_name);
 
         // 随机生成危害级别，实际应用中应根据具体逻辑决定
         const dangerLevels = ['low', 'medium', 'high'];
         const randomDangerLevel = dangerLevels[Math.floor(Math.random() * dangerLevels.length)];
-        console.log("图片",item.file_content)
         return {
           ID: index + 1,
           开始时间: timeInfo.startTime,
@@ -105,7 +98,7 @@
       });
 
       // 更新总数
-      this.AlterTable.total = response.data.total;
+      this.EventTable.total = response.data.total;
     }
   } catch (error) {
     console.error('获取警告数据时出错:', error);
@@ -147,7 +140,7 @@ extractTimeInfo(fileName) {
 }
     },
     created() {
-      this.fetchAlertData();
+      this.fetchEventData();
     },
   };
   </script>

@@ -175,7 +175,6 @@ watch: {
         
       }
     },
-    // 监听子组件触发的下一页事件
     handleNextPage() {
       if (this.CurrentTable.options.currentPage < this.totalPages) {
         this.CurrentTable.options.currentPage++; 

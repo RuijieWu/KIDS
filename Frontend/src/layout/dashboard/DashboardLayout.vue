@@ -6,7 +6,8 @@
         <sidebar-link to="/table-list" name="详细信息 "icon="ti-view-list-alt"/>
         <sidebar-link to="/rule-table" name="规则引擎" icon="ti-bookmark" />
         <sidebar-link to="/source-maps" name="溯源图" icon="ti-map" />
-        <sidebar-link to="/upload-data" name="日志数据上传" icon="ti-map" />
+        <sidebar-link to="/upload-data" name="日志数据上传" icon="ti-save" />
+        <sidebar-link to="/chat" name="安全建议" icon="ti-pencil-alt" />
         <sidebar-link to="/settings" name="设置" icon="ti-settings" />
       </template>
       <mobile-menu>
@@ -42,7 +43,7 @@
 
       <dashboard-content @click.native="toggleSidebar"> </dashboard-content>
 
-      <content-footer></content-footer>
+      
     </div>
   </div>
 </template>
