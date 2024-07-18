@@ -1,9 +1,4 @@
-<!--
- * @Date: 2024-07-14 13:07:03
- * @LastEditTime: 2024-07-19 00:11:19
- * @Description: 
--->
-# KIDS
+# [KIDS](https://github.com/RuijieWu/KIDS)
 
 Kairos-based Intrusion Detection System (KIDS) is a powerful and flexible protection system which is powered by an Intrusion Detection GNN model named [Kairos](https://github.com/ProvenanceAnalytics/kairos/tree/main).
 
