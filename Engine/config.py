@@ -9,10 +9,10 @@ Config for whole KIDS Engine
 ########################################################
 
 # The directory of the raw logs
-RAW_DIR = "/home/postgres/KIDS/Dataset/CADETS-E3-JSON/"
+RAW_DIR = "./Dataset/CADETS-E3-JSON/"
 
 # The directory to save all artifacts
-ARTIFACT_DIR = "/home/postgres/KIDS/artifact/"
+ARTIFACT_DIR = "./artifact/"
 
 # The directory to save the vectorized graphs
 GRAPHS_DIR = ARTIFACT_DIR + "graphs/"
