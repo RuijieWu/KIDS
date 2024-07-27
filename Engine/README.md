@@ -1,6 +1,6 @@
 <!--
  * @Date: 2024-07-14 13:11:11
- * @LastEditTime: 2024-07-22 23:45:46
+ * @LastEditTime: 2024-07-22 23:46:55
  * @Description: 
 -->
 # KIDS Engine
@@ -72,7 +72,6 @@ python engine.py run -begin 2018-04-06 00:00:00 -end 2018-04-07 00:00:00
 威胁调查
 
 ![KIDS Structure Design](https://github.com/RuijieWu/KIDS/blob/main/Assets/KIDS%20Engine%20Investigate.gif)
-
 
 查看数据库输出(并导出为 CSV)
 

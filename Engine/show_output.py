@@ -17,8 +17,9 @@ def get_aberration_statics(cur, rendering):
     results = cur.fetchall()
     if rendering:
         logger = open(LOG_DIR + "aberration_statics.csv","a",encoding="utf-8")
-    for result in tqdm(results):
-        if result[2] > MIN_AVG_LOSS and result[2] < MAX_AVG_LOSS:
+    for result in tqdm(results,desc="get_aberration_statics"):
+        if result[3] > MIN_AVG_LOSS and result[3] < MAX_AVG_LOSS:
+            result = (f"{result[0]}",*result[1:])
             if rendering:
                 logger.write(f"{result}\n")
             print(
@@ -43,7 +44,8 @@ def get_anomalous_actions(cur, rendering):
     results = cur.fetchall()
     if rendering:
         logger = open(LOG_DIR + "anomalous_actions.csv","a",encoding="utf-8")
-    for result in tqdm(results):
+    for result in tqdm(results,desc="get_anomalous_actions"):
+        result = (f"{result[0]}",*result[1:])
         if rendering:
             logger.write(f"{result}\n")
         print(result)
@@ -59,7 +61,8 @@ def get_anomalous_subjects(cur, rendering):
     results = cur.fetchall()
     if rendering:
         logger = open(LOG_DIR + "anomalous_subjects.csv","a",encoding="utf-8")
-    for result in tqdm(results):
+    for result in tqdm(results,desc="get_anomalous_subjects"):
+        result = (f"{result[0]}",*result[1:])
         if rendering:
             logger.write(f"{result}\n")
         print(result)
@@ -75,7 +78,8 @@ def get_anomalous_objects(cur, rendering):
     results = cur.fetchall()
     if rendering:
         logger = open(LOG_DIR + "anomalous_objects.csv","a",encoding="utf-8")
-    for result in tqdm(results):
+    for result in tqdm(results,desc="get_anomalous_objects"):
+        result = (f"{result[0]}",*result[1:])
         if rendering:
             logger.write(f"{result}\n")
         print(result)
@@ -91,7 +95,8 @@ def get_dangerous_actions(cur, rendering):
     results = cur.fetchall()
     if rendering:
         logger = open(LOG_DIR + "dangerous_actions.csv","a",encoding="utf-8")
-    for result in tqdm(results):
+    for result in tqdm(results,desc="get_dangerous_actions"):
+        result = (f"{result[0]}",*result[1:])
         if rendering:
             logger.write(f"{result}\n")
         print(result)
@@ -107,7 +112,8 @@ def get_dangerous_subjects(cur, rendering):
     results = cur.fetchall()
     if rendering:
         logger = open(LOG_DIR + "dangerous_subjects.csv","a",encoding="utf-8")
-    for result in tqdm(results):
+    for result in tqdm(results,desc="get_dangerous_subjects"):
+        result = (f"{result[0]}",*result[1:])
         if rendering:
             logger.write(f"{result}\n")
         print(result)
@@ -123,7 +129,8 @@ def get_dangerous_objects(cur, rendering):
     results = cur.fetchall()
     if rendering:
         logger = open(LOG_DIR + "dangerous_objects.csv","a",encoding="utf-8")
-    for result in tqdm(results):
+    for result in tqdm(results,desc="get_dangerous_objects"):
+        result = (f"{result[0]}",*result[1:])
         if rendering:
             logger.write(f"{result}\n")
         print(result)

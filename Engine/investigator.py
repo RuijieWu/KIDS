@@ -20,7 +20,7 @@ def community_discover(attack_list):
     #* graphs = []
     gg = nx.DiGraph()
     count = 0
-    for path in tqdm(attack_list):
+    for path in tqdm(attack_list,desc="Community Discovering"):
         if ".txt" in path:
             #* line_count = 0
             #* node_set = set()
@@ -93,7 +93,7 @@ def investigate(cur,connect,begin_time,end_time):
     anomalous_objects = []
     anomalous_actions = []
 
-    for c in tqdm(communities):
+    for c in tqdm(communities,desc="Investigating"):
         graph_index = 0
         dot = Digraph(name="IntrusionDetectionGraph", comment="KIDS Engine Output", format="png")
         dot.graph_attr['rankdir'] = 'LR'
@@ -126,10 +126,10 @@ def investigate(cur,connect,begin_time,end_time):
                 subject_node_type = "Netflow"
             if attack_edge_flag(temp_edge['srcmsg']):
                 src_node_color = 'red'
-                dangerous_subjects.append([temp_edge['time'],subject_node_type,subject_node_name])
+                dangerous_subjects.append([f"{ns_time_to_datetime_US(temp_edge['time'])}",temp_edge['time'],subject_node_type,subject_node_name])
             else:
                 src_node_color = 'blue'
-                anomalous_subjects.append([temp_edge['time'],subject_node_type,subject_node_name])
+                anomalous_subjects.append([f"{ns_time_to_datetime_US(temp_edge['time'])}",temp_edge['time'],subject_node_type,subject_node_name])
             dot.node(
                 name=str(hashgen(replace_path_name(temp_edge['srcmsg']))),
                 label=str(
@@ -157,10 +157,10 @@ def investigate(cur,connect,begin_time,end_time):
                 object_node_type = "Netflow"
             if attack_edge_flag(temp_edge['dstmsg']):
                 dst_node_color = 'red'
-                dangerous_objects.append([temp_edge['time'],object_node_type,object_node_name])
+                dangerous_objects.append([f"{ns_time_to_datetime_US(temp_edge['time'])}",temp_edge['time'],object_node_type,object_node_name])
             else:
                 dst_node_color = 'blue'
-                anomalous_objects.append([temp_edge['time'],object_node_type,object_node_name])
+                anomalous_objects.append([f"{ns_time_to_datetime_US(temp_edge['time'])}",temp_edge['time'],object_node_type,object_node_name])
             dot.node(
                 name=str(hashgen(replace_path_name(temp_edge['dstmsg']))),
                 label=str(
@@ -174,6 +174,7 @@ def investigate(cur,connect,begin_time,end_time):
             if attack_edge_flag(temp_edge['srcmsg']) and attack_edge_flag(temp_edge['dstmsg']):
                 edge_color = 'red'
                 dangerous_actions.append([
+                    f"{ns_time_to_datetime_US(temp_edge['time'])}",
                     temp_edge['time'],
                     subject_node_type,
                     subject_node_name,
@@ -184,6 +185,7 @@ def investigate(cur,connect,begin_time,end_time):
             else:
                 edge_color = 'blue'
                 anomalous_actions.append([
+                    f"{ns_time_to_datetime_US(temp_edge['time'])}",
                     temp_edge['time'],
                     subject_node_type,
                     subject_node_name,

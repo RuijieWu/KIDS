@@ -196,9 +196,9 @@ def test_data(
     '''
     test_data
     '''
-    print("[*] Testing Data")
+    #* print("[*] Testing Data")
     #* loss_list = []
-    for graph in tqdm(graphs):
+    for graph in tqdm(graphs,desc="Testing Data"):
         loss = test(
             inference_data=graph,
             memory=memory,
@@ -309,15 +309,15 @@ def main():
                 begin_time=begin_timestamp,
                 end_time=end_timestamp
                 )
-            #* loss_list = test_data()
-            #*    test_data(
-             #*       graphs=graphs,
-              #*      memory=memory,
-               #*     gnn=gnn,
-                #*    link_pred=link_pred,
-                 #*   neighbor_loader=neighbor_loader,
-                  #*  nodeid2msg=nodeid2msg
-                #*)
+                #* loss_list = test_data()
+                test_data(
+                   graphs=graphs,
+                   memory=memory,
+                   gnn=gnn,
+                    link_pred=link_pred,
+                    neighbor_loader=neighbor_loader,
+                    nodeid2msg=nodeid2msg
+                )
                 analyse(
                     cur=cur,
                     connect=connect,

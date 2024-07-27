@@ -26,7 +26,7 @@ def store_netflow(file_path, cur, connect):
     "Parse netflow type data from logs them store them into netflow_node_table"
     netobjset = set()
     netobj2hash = {}
-    for file in tqdm(FILE_LIST):
+    for file in tqdm(FILE_LIST,desc="Storing Netflow"):
         with open(file_path + file, "r",encoding="utf-8") as f:
             for line in f:
                 if "NetFlowObject" in line:
@@ -71,7 +71,7 @@ def store_subject(file_path, cur, connect):
     fail_count = 0
     #*subject_objset = set()
     subject_obj2hash = {}  #
-    for file in tqdm(FILE_LIST):
+    for file in tqdm(FILE_LIST,desc="Storing Subject"):
         with open(file_path + file, "r") as f:
             for line in f:
                 if "Event" in line:
@@ -103,7 +103,7 @@ def store_file(file_path, cur, connect):
     store_file
     '''
     file_node = set()
-    for file in tqdm(FILE_LIST):
+    for file in tqdm(FILE_LIST,desc="Storing File"):
         with open(file_path + file, "r") as f:
             for line in f:
                 if "com.bbn.tc.schema.avro.cdm18.FileObject" in line:
@@ -115,7 +115,7 @@ def store_file(file_path, cur, connect):
                         print(line)
 
     file_obj2hash = {}
-    for file in tqdm(FILE_LIST):
+    for file in tqdm(FILE_LIST,desc="Storing File"):
         with open(file_path + file, "r") as f:
             for line in f:
                 if '{"datum":{"com.bbn.tc.schema.avro.cdm18.Event"' in line:
@@ -208,7 +208,7 @@ def store_event(file_path, cur, connect, reverse, nodeid2msg, subject_uuid2hash,
     store_event
     '''
     datalist = []
-    for file in tqdm(FILE_LIST):
+    for file in tqdm(FILE_LIST,desc="Storing Event"):
         with open(file_path + file, "r") as f:
             for line in f:
                 if '{"datum":{"com.bbn.tc.schema.avro.cdm18.Event"' in line and \

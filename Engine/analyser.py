@@ -23,7 +23,7 @@ def compute_IDF(rendering = False):
     for i in file_l:
         file_list.append(file_path + i)
     node_set = {}
-    for f_path in tqdm(file_list):
+    for f_path in tqdm(file_list,desc="Computing IDS"):
         f = open(f_path,encoding="utf-8")
         for line in f:
             l = line.strip()
@@ -134,7 +134,7 @@ def anomalous_queue_construction(
 
     file_l = os.listdir(graph_dir_path)
     index_count = 0
-    for f_path in tqdm(sorted(file_l)):
+    for f_path in tqdm(sorted(file_l),desc="Constructing Anomalous Queue"):
         if recording:
             logger.write("**************************************************\n")
             logger.write(f"Time window: {f_path}\n")
@@ -184,6 +184,8 @@ def anomalous_queue_construction(
         begin_time = datetime_to_ns_time_US(f_path[:29])
         end_time = datetime_to_ns_time_US(f_path[30:-4])
         aberration_statics = [[
+            f"{ns_time_to_datetime(begin_time)}",
+            f"{ns_time_to_datetime(end_time)}",
             begin_time,
             end_time,
             loss_avg,

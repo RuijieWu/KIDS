@@ -124,6 +124,8 @@ create unique index node2id_hash_id_uindex on node2id (hash_id);
 ```sql
 create table aberration_statics_table
 (
+    begin_timestamp    timestamp,
+    end_timestamp      timestamp,
     begin_time         bigint,
     end_time           bigint,
     loss_avg           double precision,
@@ -139,13 +141,15 @@ create table aberration_statics_table
 ```sql
 create table dangerous_subjects_table
 (
-    Time      bigint,
+    timestamp      timestamp,
+    Time           bigint,
     SubjectType    varchar,
     SubjectName    varchar
 );
 create table anomalous_subjects_table
 (
-    Time      bigint,
+    timestamp      timestamp,
+    Time           bigint,
     SubjectType    varchar,
     SubjectName    varchar
 );
@@ -156,6 +160,7 @@ create table anomalous_subjects_table
 ```sql
 create table dangerous_actions_table
 (
+    timestamp      timestamp,
     Time           bigint,
     SubjectType    varchar,
     SubjectName    varchar,
@@ -165,6 +170,7 @@ create table dangerous_actions_table
 );
 create table anomalous_actions_table
 (
+    timestamp      timestamp,
     Time           bigint,
     SubjectType    varchar,
     SubjectName    varchar,
@@ -179,12 +185,14 @@ create table anomalous_actions_table
 ```sql
 create table dangerous_objects_table
 (
+    timestamp      timestamp,
     Time           bigint,
     OubjectType    varchar,
     OubjectName    varchar
 );
 create table anomalous_objects_table
 (
+    timestamp      timestamp,
     Time           bigint,
     OubjectType    varchar,
     OubjectName    varchar

@@ -28,6 +28,7 @@ import copy
 import time
 import xxhash
 import gc
+from time import ctime
 
 from config import *
 
@@ -135,7 +136,6 @@ def gen_nodeid2msg(cur):
     for i in rows:
         nodeid2msg[i[0]] = i[-1]
         nodeid2msg[i[-1]] = {i[1]: i[2]}
-
     return nodeid2msg
 
 def tensor_find(t,x):

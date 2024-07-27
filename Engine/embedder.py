@@ -17,7 +17,7 @@ def gen_feature(nodeid2msg, rendering = False):
     gen_feature
     '''
     node_msg_dic_list = []
-    for i in tqdm(nodeid2msg.keys()):
+    for i in tqdm(nodeid2msg.keys(),desc="Generating Feature"):
         if type(i) == int:
             if 'netflow' in nodeid2msg[i].keys():
                 higlist = ['netflow']
@@ -34,7 +34,7 @@ def gen_feature(nodeid2msg, rendering = False):
 
     FH_string = FeatureHasher(n_features=NODE_EMBEDDING_DIM, input_type="string")
     node2higvec=[]
-    for i in tqdm(node_msg_dic_list):
+    for i in tqdm(node_msg_dic_list,desc="Generating Feature"):
         vec=FH_string.transform([i]).toarray()
         node2higvec.append(vec)
     node2higvec = np.array(node2higvec).reshape([-1, NODE_EMBEDDING_DIM])
@@ -71,7 +71,7 @@ def gen_vectorized_graphs(
     gen_vectorized_graphs
     '''
     graphs = []
-    for interval_time in tqdm(range(begin_time,end_time,TIME_INTERVAL)):
+    for interval_time in tqdm(range(begin_time,end_time,TIME_INTERVAL),desc="Generating Vectorized Graphs"):
         begin_timestamp = interval_time
         end_timestamp = interval_time + TIME_INTERVAL
         end_timestamp = end_time if end_time < end_timestamp else end_timestamp
