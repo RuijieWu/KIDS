@@ -50,7 +50,6 @@ def community_discover(attack_list):
                                 loss=e['loss'], srcmsg=e['srcmsg'], dstmsg=e['dstmsg'], edge_type=e['edge_type'],
                                 time=e['time'])
 
-
     partition = community_louvain.best_partition(gg.to_undirected())
 
     communities = {}
@@ -86,14 +85,14 @@ def investigate(cur,connect,begin_time,end_time):
     gg, communities, partition = community_discover(attack_list)
     os.system(f"mkdir -p {ARTIFACT_DIR}/graph_visual/")
     #* graph_index = 0
-    dangerous_subjects = []
-    dangerous_objects = []
-    dangerous_actions = []
-    anomalous_subjects = []
-    anomalous_objects = []
-    anomalous_actions = []
 
     for c in tqdm(communities,desc="Investigating"):
+        dangerous_subjects = []
+        dangerous_objects = []
+        dangerous_actions = []
+        anomalous_subjects = []
+        anomalous_objects = []
+        anomalous_actions = []
         graph_index = 0
         dot = Digraph(name="IntrusionDetectionGraph", comment="KIDS Engine Output", format="png")
         dot.graph_attr['rankdir'] = 'LR'
@@ -203,16 +202,29 @@ def investigate(cur,connect,begin_time,end_time):
         #*dot.render(
         #*f"{ARTIFACT_DIR}/graph_visual/subgraph_{begin_time}_{end_time}_{str(graph_index)}",
         #*view=False)
+        begin_time = ns_time_to_datetime_US(begin_time)
+        end_time = ns_time_to_datetime_US(end_time)
+        filename = f"{begin_time}~{end_time}_{str(graph_index)}"
+        for l in dangerous_subjects:
+            l.append(filename)
+        for l in dangerous_objects:
+            l.append(filename)
+        for l in dangerous_actions:
+            l.append(filename)
+        for l in anomalous_subjects:
+            l.append(filename)
+        for l in anomalous_objects:
+            l.append(filename)
+        for l in anomalous_actions:
+            l.append(filename)
         save_dangerous_actions(cur,connect,dangerous_actions)
         save_dangerous_subjects(cur,connect,dangerous_subjects)
         save_dangerous_objects(cur,connect,dangerous_objects)
         save_anomalous_actions(cur,connect,anomalous_actions)
         save_anomalous_subjects(cur,connect,anomalous_subjects)
         save_anomalous_objects(cur,connect,anomalous_objects)
-        begin_time = ns_time_to_datetime_US(begin_time)
-        end_time = ns_time_to_datetime_US(end_time)
         dot.render(
-            filename=f"{ARTIFACT_DIR}/graph_visual/{begin_time}~{end_time}_{str(graph_index)}",
+            filename=f"{ARTIFACT_DIR}/graph_visual/{filename}",
             view=False
         )
         graph_index += 1

@@ -144,14 +144,16 @@ create table dangerous_subjects_table
     timestamp      timestamp,
     Time           bigint,
     SubjectType    varchar,
-    SubjectName    varchar
+    SubjectName    varchar,
+    GraphIndex     varchar
 );
 create table anomalous_subjects_table
 (
     timestamp      timestamp,
     Time           bigint,
     SubjectType    varchar,
-    SubjectName    varchar
+    SubjectName    varchar,
+    GraphIndex     varchar
 );
 ```
 
@@ -166,7 +168,8 @@ create table dangerous_actions_table
     SubjectName    varchar,
     Action         varchar,
     OubjectType    varchar,
-    OubjectName    varchar
+    OubjectName    varchar,
+    GraphIndex     varchar
 );
 create table anomalous_actions_table
 (
@@ -176,7 +179,8 @@ create table anomalous_actions_table
     SubjectName    varchar,
     Action         varchar,
     OubjectType    varchar,
-    OubjectName    varchar
+    OubjectName    varchar,
+    GraphIndex     varchar
 );
 ```
 
@@ -188,14 +192,16 @@ create table dangerous_objects_table
     timestamp      timestamp,
     Time           bigint,
     OubjectType    varchar,
-    OubjectName    varchar
+    OubjectName    varchar,
+    GraphIndex     varchar
 );
 create table anomalous_objects_table
 (
     timestamp      timestamp,
     Time           bigint,
     OubjectType    varchar,
-    OubjectName    varchar
+    OubjectName    varchar,
+    GraphIndex     varchar
 );
 ```
 

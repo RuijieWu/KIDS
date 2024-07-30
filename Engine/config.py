@@ -153,8 +153,8 @@ create unique index node2id_hash_id_uindex on node2id (hash_id);
 CREATE_ABERRATION_STATICS_TABLE = '''
 create table aberration_statics_table
 (
-    begin_timestamp          timestamp,
-    end_timestamp          timestamp,
+    begin_timestamp    timestamp,
+    end_timestamp      timestamp,
     begin_time         bigint,
     end_time           bigint,
     loss_avg           double precision,
@@ -171,14 +171,16 @@ create table dangerous_subjects_table
     timestamp      timestamp,
     Time           bigint,
     SubjectType    varchar,
-    SubjectName    varchar
+    SubjectName    varchar,
+    GraphIndex     varchar
 );
 create table anomalous_subjects_table
 (
     timestamp      timestamp,
     Time           bigint,
     SubjectType    varchar,
-    SubjectName    varchar
+    SubjectName    varchar,
+    GraphIndex     varchar
 );
 '''
 
@@ -191,7 +193,8 @@ create table dangerous_actions_table
     SubjectName    varchar,
     Action         varchar,
     OubjectType    varchar,
-    OubjectName    varchar
+    OubjectName    varchar,
+    GraphIndex     varchar
 );
 create table anomalous_actions_table
 (
@@ -201,7 +204,8 @@ create table anomalous_actions_table
     SubjectName    varchar,
     Action         varchar,
     OubjectType    varchar,
-    OubjectName    varchar
+    OubjectName    varchar,
+    GraphIndex     varchar
 );
 '''
 
@@ -211,14 +215,16 @@ create table dangerous_objects_table
     timestamp      timestamp,
     Time           bigint,
     OubjectType    varchar,
-    OubjectName    varchar
+    OubjectName    varchar,
+    GraphIndex     varchar
 );
 create table anomalous_objects_table
 (
     timestamp      timestamp,
     Time           bigint,
     OubjectType    varchar,
-    OubjectName    varchar
+    OubjectName    varchar,
+    GraphIndex     varchar
 );
 '''
 
@@ -878,13 +884,18 @@ REPLACE_DICT = {
 
 ATTACK_LIST = {
     "cadets-e3":[
-        '2018-04-06 11:18:26.126177915~2018-04-06 11:33:35.116170745.txt',# 1 origin
-        '2018-04-06 11:33:35.116170745~2018-04-06 11:48:42.606135188.txt',# 1 origin
-        '2018-04-06 11:48:42.606135188~2018-04-06 12:03:50.186115455.txt',# 1 origin
-        '2018-04-06 12:03:50.186115455~2018-04-06 14:01:32.489584227.txt',# 1 origin
-        '2018-04-06 09:31:25.146320510~2018-04-06 09:46:40.966296805.txt',# 2 > 5
-        '2018-04-06 10:33:00.136241644~2018-04-06 10:48:11.796216358.txt',# 2 > 5
-        '2018-04-07 10:51:55.367905007~2018-04-07 11:07:01.987882382.txt'# 3 > 4.8
+        '2018-04-06 11:18:26.126177915~2018-04-06 11:33:35.116170745.txt', # 1 origin
+        '2018-04-06 11:33:35.116170745~2018-04-06 11:48:42.606135188.txt', # 1 origin
+        '2018-04-06 11:48:42.606135188~2018-04-06 12:03:50.186115455.txt', # 1 origin
+        '2018-04-06 12:03:50.186115455~2018-04-06 14:01:32.489584227.txt', # 1 origin
+#        '2018-04-06 09:31:25.146320510~2018-04-06 09:46:40.966296805.txt', # 2 > 4.5
+#        '2018-04-06 10:33:00.136241644~2018-04-06 10:48:11.796216358.txt', # 2 > 4.5
+#        '2018-04-06 16:18:33.979401357~2018-04-06 16:34:47.879379108.txt', # 2 > 4.5
+#        '2018-04-06 16:50:08.479356930~2018-04-06 17:05:29.239333653.txt', # 2 > 4.5
+#        '2018-04-06 01:17:19.056982719~2018-04-06 01:32:29.456961759.txt', # 3 < 2.14
+#        '2018-04-06 04:07:44.916766067~2018-04-06 04:22:56.346731444.txt', # 3 < 2.14
+#        '2018-04-06 06:11:49.026587588~2018-04-06 06:26:59.116568845.txt', # 3 < 2.14
+#        '2018-04-06 23:33:15.408814807~2018-04-06 23:49:23.948792776.txt', # 3 < 2.14
     ],
     "low":[],
     "medium":[],
@@ -901,8 +912,8 @@ QUARTER = 900000000000
 MINUTE = 60000000000
 TIME_INTERVAL = DAY
 LOSS_FACTOR = 1.5
-MAX_AVG_LOSS = 100
-MIN_AVG_LOSS = 4.5
+MAX_AVG_LOSS = 10
+MIN_AVG_LOSS = 4.7
 
 DETECTION_LEVEL = "cadets-e3"
 
