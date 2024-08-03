@@ -7,8 +7,9 @@ import re
 import hashlib
 #* import torch
 from tqdm import tqdm
-from config import *
-from utils import *
+from config import config
+from utils import init_database_connection
+from psycopg2 import extras as ex
 
 def stringtomd5(originstr):
     '''
@@ -26,7 +27,7 @@ def store_netflow(file_path, cur, connect):
     "Parse netflow type data from logs them store them into netflow_node_table"
     netobjset = set()
     netobj2hash = {}
-    for file in tqdm(FILE_LIST,desc="Storing Netflow"):
+    for file in tqdm(config["FILE_LIST"],desc="Storing Netflow"):
         with open(file_path + file, "r",encoding="utf-8") as f:
             for line in f:
                 if "NetFlowObject" in line:
@@ -71,7 +72,7 @@ def store_subject(file_path, cur, connect):
     fail_count = 0
     #*subject_objset = set()
     subject_obj2hash = {}  #
-    for file in tqdm(FILE_LIST,desc="Storing Subject"):
+    for file in tqdm(config["FILE_LIST"],desc="Storing Subject"):
         with open(file_path + file, "r") as f:
             for line in f:
                 if "Event" in line:
@@ -103,7 +104,7 @@ def store_file(file_path, cur, connect):
     store_file
     '''
     file_node = set()
-    for file in tqdm(FILE_LIST,desc="Storing File"):
+    for file in tqdm(config["FILE_LIST"],desc="Storing File"):
         with open(file_path + file, "r") as f:
             for line in f:
                 if "com.bbn.tc.schema.avro.cdm18.FileObject" in line:
@@ -115,7 +116,7 @@ def store_file(file_path, cur, connect):
                         print(line)
 
     file_obj2hash = {}
-    for file in tqdm(FILE_LIST,desc="Storing File"):
+    for file in tqdm(config["FILE_LIST"],desc="Storing File"):
         with open(file_path + file, "r") as f:
             for line in f:
                 if '{"datum":{"com.bbn.tc.schema.avro.cdm18.Event"' in line:
@@ -208,7 +209,7 @@ def store_event(file_path, cur, connect, reverse, nodeid2msg, subject_uuid2hash,
     store_event
     '''
     datalist = []
-    for file in tqdm(FILE_LIST,desc="Storing Event"):
+    for file in tqdm(config["FILE_LIST"],desc="Storing Event"):
         with open(file_path + file, "r") as f:
             for line in f:
                 if '{"datum":{"com.bbn.tc.schema.avro.cdm18.Event"' in line and \
@@ -263,15 +264,15 @@ if __name__ == "__main__":
 
     # There will be 155322 netflow nodes stored in the table
     print("Processing netflow data")
-    store_netflow(file_path=RAW_DIR, cur=cur, connect=connect)
+    store_netflow(file_path=config["RAW_DIR"], cur=cur, connect=connect)
 
     # There will be 224146 subject nodes stored in the table
     print("Processing subject data")
-    store_subject(file_path=RAW_DIR, cur=cur, connect=connect)
+    store_subject(file_path=config["RAW_DIR"], cur=cur, connect=connect)
 
     # There will be 234245 file nodes stored in the table
     print("Processing file data")
-    store_file(file_path=RAW_DIR, cur=cur, connect=connect)
+    store_file(file_path=config["RAW_DIR"], cur=cur, connect=connect)
 
     # There will be 268242 entities stored in the table
     print("Extracting the node list")
@@ -280,10 +281,10 @@ if __name__ == "__main__":
     # There will be 29727441 events stored in the table
     print("Processing the events")
     store_event(
-        file_path=RAW_DIR,
+        file_path=config["RAW_DIR"],
         cur=cur,
         connect=connect,
-        reverse=EDGE_REVERSED,
+        reverse=config["EDGE_REVERSED"],
         nodeid2msg=nodeid2msg,
         subject_uuid2hash=subject_uuid2hash,
         file_uuid2hash=file_uuid2hash,

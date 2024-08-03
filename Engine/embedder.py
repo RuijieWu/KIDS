@@ -9,8 +9,13 @@ from tqdm import tqdm
 import numpy as np
 import torch
 
-from config import *
-from utils import *
+from config import config
+from utils import (
+    list2str,
+    ip2higlist,
+    path2higlist,
+    get_events
+)
 
 def gen_feature(nodeid2msg, rendering = False):
     '''
@@ -32,14 +37,14 @@ def gen_feature(nodeid2msg, rendering = False):
                 higlist += path2higlist(nodeid2msg[i]['subject'])
             node_msg_dic_list.append(list2str(higlist))
 
-    FH_string = FeatureHasher(n_features=NODE_EMBEDDING_DIM, input_type="string")
+    FH_string = FeatureHasher(n_features=config["NODE_EMBEDDING_DIM"], input_type="string")
     node2higvec=[]
     for i in tqdm(node_msg_dic_list,desc="Generating Feature"):
         vec=FH_string.transform([i]).toarray()
         node2higvec.append(vec)
-    node2higvec = np.array(node2higvec).reshape([-1, NODE_EMBEDDING_DIM])
+    node2higvec = np.array(node2higvec).reshape([-1, config["NODE_EMBEDDING_DIM"]])
     if rendering:
-        torch.save(node2higvec, ARTIFACT_DIR + "node2higvec")
+        torch.save(node2higvec, config["ARTIFACT_DIR"] + "node2higvec")
     return node2higvec
 
 def gen_relation_onehot(rendering = False):
@@ -47,16 +52,16 @@ def gen_relation_onehot(rendering = False):
     gen_relation_onehot
     '''
     relvec = torch.nn.functional.one_hot(
-        torch.arange(0, len(REL2ID[DETECTION_LEVEL].keys())//2),
-        num_classes=len(REL2ID[DETECTION_LEVEL].keys())//2
+        torch.arange(0, len(config["REL2ID"][config["DETECTION_LEVEL"]].keys())//2),
+        num_classes=len(config["REL2ID"][config["DETECTION_LEVEL"]].keys())//2
     )
     rel2vec = {}
-    for i in REL2ID[DETECTION_LEVEL].keys():
+    for i in config["REL2ID"][config["DETECTION_LEVEL"]].keys():
         if type(i) is not int:
-            rel2vec[i]= relvec[REL2ID[DETECTION_LEVEL][i]-1]
-            rel2vec[relvec[REL2ID[DETECTION_LEVEL][i]-1]]=i
+            rel2vec[i]= relvec[config["REL2ID"][config["DETECTION_LEVEL"]][i]-1]
+            rel2vec[relvec[config["REL2ID"][config["DETECTION_LEVEL"]][i]-1]]=i
     if rendering:
-        torch.save(rel2vec, ARTIFACT_DIR + "rel2vec")
+        torch.save(rel2vec, config["ARTIFACT_DIR"] + "rel2vec")
     return rel2vec
 
 def gen_vectorized_graphs(
@@ -71,9 +76,9 @@ def gen_vectorized_graphs(
     gen_vectorized_graphs
     '''
     graphs = []
-    for interval_time in tqdm(range(begin_time,end_time,TIME_INTERVAL),desc="Generating Vectorized Graphs"):
+    for interval_time in tqdm(range(begin_time,end_time,config["TIME_INTERVAL"]),desc="Generating Vectorized Graphs"):
         begin_timestamp = interval_time
-        end_timestamp = interval_time + TIME_INTERVAL
+        end_timestamp = interval_time + config["TIME_INTERVAL"]
         end_timestamp = end_time if end_time < end_timestamp else end_timestamp
         events = get_events(cur,begin_timestamp,end_timestamp)
         if not events:
@@ -81,7 +86,7 @@ def gen_vectorized_graphs(
         edge_list = []
         for e in events:
             edge_temp = [int(e[1]), int(e[4]), e[2], e[5]]
-            if e[2] in EDGE_TYPE[DETECTION_LEVEL]:
+            if e[2] in config["EDGE_TYPE"][config["DETECTION_LEVEL"]]:
                 edge_list.append(edge_temp)
 
         dataset = TemporalData()
@@ -111,7 +116,9 @@ def gen_vectorized_graphs(
         if rendering:
             torch.save(
                 dataset,
-               GRAPHS_DIR + "/graph_" + str(begin_time) + '~' + str(end_time) + ".TemporalData.simple"
+               config["ARTIFACT_DIR"] + "graphs/" + \
+                "/graph_" + str(begin_time) + '~' + str(end_time) + \
+                ".TemporalData.simple"
             )
         graphs.append(dataset)
     return graphs

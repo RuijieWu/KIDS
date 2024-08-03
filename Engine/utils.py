@@ -30,10 +30,66 @@ import xxhash
 import gc
 from time import ctime
 
-from config import *
+from config import config
 
 #################################################
 #* General
+
+class Command(object):
+    '''
+    Command for KIDS Engine
+    '''
+    def __init__(self) -> None:
+        self.help = False
+        self.cmd = None
+        self.api_args = {
+            "host": config["DEFAULT_HOST"],
+            "port": config["DEFAULT_PORT"]
+        }
+        self.init_args = {}
+        self.begin_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+        self.end_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+
+    def parse(self, args: list[str]):
+        '''
+        parse arguments
+        '''
+        self.cmd = args[1].lower()
+        if self.cmd in ("-h", "--help"):
+            self.help = True
+            return
+        elif self.cmd in ("run","investigate","analyse","test"):
+            for index, arg in enumerate(args):
+                try:
+                    if arg.lower() in ("-begin","--begin"):
+                        self.begin_time = f"{args[index+1]} 00:00:00"
+                        if ":" in args[index + 2]:
+                            self.begin_time = f"{args[index+1]} {args[index+2]}"
+                    if arg.lower() in ("-end","--end"):
+                        self.end_time = f"{args[index+1]} 00:00:00"
+                        if ":" in args[index + 2]:
+                            self.end_time = f"{args[index+1]} {args[index+2]}"
+                except IndexError:
+                    pass
+        elif self.cmd in ("init"):
+            pass
+        elif self.cmd in ("rpc", "flask", "api"):
+            if len(args) == 2:
+                return
+            flag = True
+            for index, arg in enumerate(args):
+                try:
+                    if arg in ("-host","-h","--h","--host"):
+                        self.api_args["host"] = args[index+1].lower()
+                        flag = False
+                    if arg in ("-port","-p","--p","--port"):
+                        self.api_args["port"] = args[index+1]
+                        flag = False
+                except IndexError:
+                    pass
+            if flag:
+                self.api_args["host"] = args[2].lower()
+                self.api_args["port"] = args[3]
 
 def ns_time_to_datetime(ns):
     """
@@ -109,18 +165,18 @@ def init_database_connection():
     '''
     init_database_connection
     '''
-    if HOST is not None:
-        connect = psycopg2.connect(database = DATABASE,
-                                   host = HOST,
-                                   user = USER,
-                                   password = PASSWORD,
-                                   port = PORT
+    if config.get("HOST",None):
+        connect = psycopg2.connect(database = config["DATABASE"],
+                                   host = config["HOST"],
+                                   user = config["USER"],
+                                   password = config["PASSWORD"],
+                                   port = config["PORT"]
                                   )
     else:
-        connect = psycopg2.connect(database = DATABASE,
-                                   user = USER,
-                                   password = PASSWORD,
-                                   port = PORT
+        connect = psycopg2.connect(database = config["DATABASE"],
+                                   user = config["USER"],
+                                   password = config["PASSWORD"],
+                                   port = config["PORT"]
                                   )
     cur = connect.cursor()
     return cur, connect
@@ -238,7 +294,7 @@ def get_attack_list(cur,begin_time,end_time):
     '''
     get_attack_list
     '''
-    attack_list = ATTACK_LIST[DETECTION_LEVEL]
+    attack_list = config["ATTACK_LIST"][config["DETECTION_LEVEL"]]
     if not attack_list:
     #*attack_list = os.listdir(f"{ARTIFACT_DIR}/graph_list")
 
@@ -251,7 +307,7 @@ def get_attack_list(cur,begin_time,end_time):
         cur.execute(sql)
         results = cur.fetchall()
         for result in results:
-            if result[2] > MIN_AVG_LOSS and result[2] < MAX_AVG_LOSS and \
+            if result[2] > config["MIN_AVG_LOSS"] and result[2] < config["MAX_AVG_LOSS"] and \
                 result[0] > begin_time and result[1] < end_time:
                 attack_list[
                     f"{ns_time_to_datetime_US(result[0])}~{ns_time_to_datetime_US(result[1])}.txt\n"
@@ -263,9 +319,9 @@ def replace_path_name(path_name):
     '''
     replace_path_name
     '''
-    for i in REPLACE_DICT[DETECTION_LEVEL]:
+    for i in config["REPLACE_DICT"][config["DETECTION_LEVEL"]]:
         if i in path_name:
-            return REPLACE_DICT[DETECTION_LEVEL][i]
+            return config["REPLACE_DICT"][config["DETECTION_LEVEL"]][i]
     return path_name
 
 def save_dangerous_actions(cur,connect,dangerous_action_list):

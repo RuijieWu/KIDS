@@ -2,6 +2,9 @@
 Config for whole KIDS Engine
 '''
 
+from yaml import safe_load
+config = safe_load(open("./config.yaml","r"))
+
 ########################################################
 #
 #                   Artifacts path
@@ -15,17 +18,17 @@ RAW_DIR = "./Dataset/CADETS-E3-JSON/"
 ARTIFACT_DIR = "./artifact/"
 
 # The directory to save the vectorized graphs
-GRAPHS_DIR = ARTIFACT_DIR + "graphs/"
+#* GRAPHS_DIR = ARTIFACT_DIR + "graphs/"
 
 # The directory to save the models
-MODELS_DIR = ARTIFACT_DIR + "models/"
+#* MODELS_DIR = ARTIFACT_DIR + "models/"
 MODEL_NAME = "cadets3_models"
-MODELS_PATH = MODELS_DIR + MODEL_NAME + ".pt"
+#* MODELS_PATH = MODELS_DIR + MODEL_NAME + ".pt"
 # The directory to save the results after testing
-TEST_RE = ARTIFACT_DIR + "test_re/"
+#* TEST_RE = ARTIFACT_DIR + "test_re/"
 
 # The directory to save all visualized results
-VIS_RE = ARTIFACT_DIR + "vis_re/"
+#* VIS_RE = ARTIFACT_DIR + "vis_re/"
 
 # The directory to save logs
 LOG_DIR = "./Log/"
@@ -260,13 +263,13 @@ EDGE_REVERSED = [
 # temporal graph for experiments.
 EDGE_TYPE={
     "cadets-e3":[
-    "EVENT_WRITE",
-    "EVENT_READ",
-    "EVENT_CLOSE",
-    "EVENT_OPEN",
-    "EVENT_EXECUTE",
-    "EVENT_SENDTO",
-    "EVENT_RECVFROM", 
+        "EVENT_WRITE",
+        "EVENT_READ",
+        "EVENT_CLOSE",
+        "EVENT_OPEN",
+        "EVENT_EXECUTE",
+        "EVENT_SENDTO",
+        "EVENT_RECVFROM", 
     ],
     "low":[    
         'EVENT_CLOSE',
@@ -329,103 +332,75 @@ REL2ID = {
     "low":{
         'EVENT_CLOSE':1,
         1:'EVENT_CLOSE',
-
         'EVENT_OPEN':2,
         2:'EVENT_OPEN',
-
         'EVENT_READ':3,
         3:'EVENT_READ',
-
         'EVENT_WRITE':4,
         4:'EVENT_WRITE',
-
         'EVENT_EXECUTE':5,
         5:'EVENT_EXECUTE',
-
         'EVENT_RECVFROM':6,
         6:'EVENT_RECVFROM',
-
         'EVENT_RECVMSG':7,
         7:'EVENT_RECVMSG',
-
         'EVENT_SENDMSG':8,
         8:'EVENT_SENDMSG',
-
         'EVENT_SENDTO':9,
         9:'EVENT_SENDTO'
     },
     "medium":{
         'EVENT_CLOSE':1,
         1:'EVENT_CLOSE',
-
         'EVENT_CONNECT':2,
         2:'EVENT_CONNECT',
-
         'EVENT_EXECUTE':3,
         3:'EVENT_EXECUTE',
-
         'EVENT_OPEN':4,
         4:'EVENT_OPEN',
-
         'EVENT_READ':5,
         5:'EVENT_READ',
-
         'EVENT_RECVFROM':6,
         6:'EVENT_RECVFROM',
-
         'EVENT_RECVMSG':7,
         7:'EVENT_RECVMSG',
-
         'EVENT_SENDMSG':8,
         8:'EVENT_SENDMSG',
-
         'EVENT_SENDTO':9,
         9:'EVENT_SENDTO',
-
         'EVENT_WRITE':10,
         10:'EVENT_WRITE',
     },
     "high":{
         'EVENT_CLOSE':1,
         1:'EVENT_CLOSE',
-
         'EVENT_CONNECT':2,
         2:'EVENT_CONNECT',
-
         'EVENT_EXECUTE':3,
         3:'EVENT_EXECUTE',
-
         'EVENT_OPEN':4,
         4:'EVENT_OPEN',
-
         'EVENT_READ':5,
         5:'EVENT_READ',
-
         'EVENT_RECVFROM':6,
         6:'EVENT_RECVFROM',
-
         'EVENT_RECVMSG':7,
         7:'EVENT_RECVMSG',
-
         'EVENT_SENDMSG':8,
         8:'EVENT_SENDMSG',
-
         'EVENT_SENDTO':9,
         9:'EVENT_SENDTO',
-
         'EVENT_WRITE':10,
         10:'EVENT_WRITE',
-
         'EVENT_ACCEPT':11,
         11:'EVENT_ACCEPT',
-
         'EVENT_CLONE':12,
         12:'EVENT_CLONE',
-
         'EVENT_CREATE_OBJECT':13,
         13:'EVENT_CREATE_OBJECT'
     }
 }
+
 ########################################################
 #
 #                   Model dimensionality
@@ -447,7 +422,6 @@ EDGE_DIM = 100
 # The time encoding Dimension
 TIME_DIM = 100
 
-
 ########################################################
 #
 #                   Train&Test
@@ -468,7 +442,6 @@ EPOCH_NUM = 50
 # The default setting is 15 minutes.
 TIME_WINDOW_SIZE = 60000000000 * 15
 
-
 ########################################################
 #
 #                   Threshold
@@ -485,17 +458,17 @@ BETA_DAY = 100
 
 KEYWORDS = {
     "cadets-e3":[        
-            'netflow',
-            '/home/george/Drafts',
-            'usr',
-            'proc',
-            'var',
-            'cadet',
-            '/var/log/debug.log',
-            '/var/log/cron',
-            '/home/charles/Drafts',
-            '/etc/ssl/cert.pem',
-            '/tmp/.31.3022e',
+        'netflow',
+        '/home/george/Drafts',
+        'usr',
+        'proc',
+        'var',
+        'cadet',
+        '/var/log/debug.log',
+        '/var/log/cron',
+        '/home/charles/Drafts',
+        '/etc/ssl/cert.pem',
+        '/tmp/.31.3022e',
     ],
     "low":[
         'netflow',
@@ -652,6 +625,7 @@ KEYWORDS = {
 #  attack
 #
 #########################################################
+
 ATTACK_NODES = {
     "cadets-e3":{
         '/tmp/vUgefal',
@@ -686,7 +660,7 @@ ATTACK_NODES = {
         "mail",
         "smtpd",
         "service",
-        "/bin/sh"
+        "/bin/sh",
         '/var/log/sshdlog',
         '/usr/sbin/sshd',
         'firefox',
@@ -698,8 +672,7 @@ ATTACK_NODES = {
         '/var/log',
         './run_webserver.sh',
         'whoami',
-        'cat /etc/passwd',  
-        
+        'cat /etc/passwd' 
     ],
     "high":[
         '208.203.20.42',
@@ -917,4 +890,37 @@ MIN_AVG_LOSS = 4.7
 
 DETECTION_LEVEL = "cadets-e3"
 
-HELP_MSG = ""
+HELP_MSG = """
+Engine [cmd] [args]
+cmd:
+    -h / --help                                   Get help message for KIDS Engine
+    test                                          Test datasets and calculate loss
+    analyse                                       Analyse datasets and corresponding loss
+    investigate                                   Investigate dangers/anomalies
+    run                                           Test, Analyse and Investigate
+    api / rpc                                     Work as an API/RPC server
+args:
+    analyse / investigate / run
+        -begin                                    Beginning time of intrusion detection
+        -end                                      Ending time of intrusion detection
+    api / rpc
+        -host                                     Host of KIDS Engine
+        -port                                     Port to listen
+api:
+    ALL responses are in json
+    /ping                                         Ping Engine to check if it's survive
+    /api/<cmd>/<begin_time>/<end_time>            Execute remote command
+    /config/update/<key>/<value>                  Update config parameters
+    /config/view                                  View config parameters
+"""
+DEFAULT_HOST = "localhost"
+DEFAULT_PORT = 7777
+DEFAULT_DATASET = "CADETS-E3"
+
+FORBIDDEN_KEYS = (
+    "EDGE_REVERSED",
+    "EDGE_TYPE",
+    "REL2ID",
+    "FILE_LIST",
+    "ATTACK_LIST"
+)

@@ -8,9 +8,22 @@ import networkx as nx
 import community.community_louvain as community_louvain
 from tqdm import tqdm
 
-from utils import *
-from config import *
-from model import *
+from utils import (
+    get_attack_list,
+    mean,
+    std,
+    hashgen,
+    replace_path_name,
+    ns_time_to_datetime_US,
+    save_anomalous_actions,
+    save_anomalous_subjects,
+    save_anomalous_objects,
+    save_dangerous_actions,
+    save_dangerous_objects,
+    save_dangerous_subjects
+)
+from config import config
+# from model import *
 
 def community_discover(attack_list):
     '''
@@ -25,7 +38,7 @@ def community_discover(attack_list):
             #* line_count = 0
             #* node_set = set()
             tempg = nx.DiGraph()
-            f = open(f"{ARTIFACT_DIR}/graph_list/{path}", "r",encoding="utf-8")
+            f = open(config["ARTIFACT_DIR"] + f"/graph_list/{path}", "r",encoding="utf-8")
             edge_list = []
             for line in f:
                 count += 1
@@ -41,7 +54,7 @@ def community_discover(attack_list):
                 loss_list.append(i['loss'])
             loss_mean = mean(loss_list)
             loss_std = std(loss_list)
-            thr = loss_mean + LOSS_FACTOR * loss_std
+            thr = loss_mean + config["LOSS_FACTOR"] * loss_std
             for e in edge_list:
                 if e['loss'] > thr:
                     tempg.add_edge(str(hashgen(replace_path_name(e['srcmsg']))),
@@ -69,7 +82,7 @@ def attack_edge_flag(msg):
     '''
     attack_edge_flag
     '''
-    attack_nodes = ATTACK_NODES[DETECTION_LEVEL]
+    attack_nodes = config["ATTACK_NODES"][config["DETECTION_LEVEL"]]
     flag = False
     for i in attack_nodes:
         if i in msg:
@@ -83,7 +96,7 @@ def investigate(cur,connect,begin_time,end_time):
     print("[*] Investigating")
     attack_list = get_attack_list(cur,begin_time,end_time)
     gg, communities, partition = community_discover(attack_list)
-    os.system(f"mkdir -p {ARTIFACT_DIR}/graph_visual/")
+    os.system("mkdir -p " + config["ARTIFACT_DIR"] + "/graph_visual/")
     #* graph_index = 0
 
     for c in tqdm(communities,desc="Investigating"):
@@ -96,8 +109,8 @@ def investigate(cur,connect,begin_time,end_time):
         graph_index = 0
         dot = Digraph(name="IntrusionDetectionGraph", comment="KIDS Engine Output", format="png")
         dot.graph_attr['rankdir'] = 'LR'
-        begin_time = BEGIN_TIME
-        end_time = END_TIME
+        begin_time = config["BEGIN_TIME"]
+        end_time = config["END_TIME"]
         for e in communities[c].edges:
             try:
                 temp_edge = gg.edges[e]
@@ -121,7 +134,7 @@ def investigate(cur,connect,begin_time,end_time):
                 src_shape = 'diamond'
                 subject_node_type = "Netflow"
             else:
-                src_shape = DEFAULT_SHAPE
+                src_shape = config["DEFAULT_SHAPE"]
                 subject_node_type = "Netflow"
             if attack_edge_flag(temp_edge['srcmsg']):
                 src_node_color = 'red'
@@ -152,7 +165,7 @@ def investigate(cur,connect,begin_time,end_time):
                 dst_shape = 'diamond'
                 object_node_type = "Netflow"
             else:
-                dst_shape = DEFAULT_SHAPE
+                dst_shape = config["DEFAULT_SHAPE"]
                 object_node_type = "Netflow"
             if attack_edge_flag(temp_edge['dstmsg']):
                 dst_node_color = 'red'
@@ -224,7 +237,7 @@ def investigate(cur,connect,begin_time,end_time):
         save_anomalous_subjects(cur,connect,anomalous_subjects)
         save_anomalous_objects(cur,connect,anomalous_objects)
         dot.render(
-            filename=f"{ARTIFACT_DIR}/graph_visual/{filename}",
+            filename=config["ARTIFACT_DIR"] + f"/graph_visual/{filename}",
             view=False
         )
         graph_index += 1

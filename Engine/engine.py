@@ -6,17 +6,36 @@ import os
 import sys
 import time
 import torch
-import numpy as np
-from sklearn.feature_extraction import FeatureHasher
+from copy import deepcopy
+from flask import (
+    Flask,
+    jsonify
+)
+#import numpy as np
+#from sklearn.feature_extraction import FeatureHasher
 from torch_geometric.data import *
 from tqdm import tqdm
 
-from analyser import *
-from model import *
-from config import *
-from utils import *
-from embedder import *
-from investigator import *
+from analyser import analyse
+#from model import *
+from config import (
+    config,
+    HELP_MSG,
+    FORBIDDEN_KEYS
+)
+from utils import (
+    init_database_connection,
+    gen_nodeid2msg,
+    Command,
+    datetime_to_ns_time_US,
+    ns_time_to_datetime_US
+)
+from embedder import (
+    gen_relation_onehot,
+    gen_feature,
+    gen_vectorized_graphs
+)
+from investigator import investigate
 
 #* device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 #* criterion = nn.CrossEntropyLoss()
@@ -43,7 +62,7 @@ def test(
     '''
     os.system(f"mkdir -p {path}")
     if recording:
-        logger = open(LOG_DIR + "test.txt","a",encoding="utf-8")
+        logger = open(config["LOG_DIR"] + "test.txt","a",encoding="utf-8")
 
     memory.eval()
     gnn.eval()
@@ -65,11 +84,11 @@ def test(
 
     start = time.perf_counter()
 
-    for batch in inference_data.seq_batches(batch_size=BATCH):
+    for batch in inference_data.seq_batches(batch_size=config["BATCH"]):
 
         src, pos_dst, t, msg = batch.src, batch.dst, batch.t, batch.msg
         unique_nodes = torch.cat([unique_nodes, src, pos_dst]).unique()
-        total_edges += BATCH
+        total_edges += config["BATCH"]
 
         n_id = torch.cat([src, pos_dst]).unique()
         n_id, edge_index, e_id = neighbor_loader(n_id)
@@ -84,7 +103,7 @@ def test(
         y_pred = torch.cat([pos_out], dim=0)
         y_true = []
         for m in msg:
-            l = tensor_find(m[NODE_EMBEDDING_DIM:-NODE_EMBEDDING_DIM], 1) - 1
+            l = tensor_find(m[config["NODE_EMBEDDING_DIM"]:-config["NODE_EMBEDDING_DIM"]], 1) - 1
             y_true.append(l)
         y_true = torch.tensor(y_true).to(device=device)
         y_true = y_true.reshape(-1).to(torch.long).to(device=device)
@@ -104,8 +123,8 @@ def test(
             srcmsg = str(nodeid2msg[srcnode])
             dstmsg = str(nodeid2msg[dstnode])
             t_var = int(t[i])
-            edgeindex = tensor_find(msg[i][NODE_EMBEDDING_DIM:-NODE_EMBEDDING_DIM], 1)
-            edge_type = REL2ID[DETECTION_LEVEL][edgeindex]
+            edgeindex = tensor_find(msg[i][config["NODE_EMBEDDING_DIM"]:-config["NODE_EMBEDDING_DIM"]], 1)
+            edge_type = config["REL2ID"][config["DETECTION_LEVEL"]][edgeindex]
             loss = each_edge_loss[i]
 
             temp_dic = {}
@@ -120,7 +139,7 @@ def test(
             edge_list.append(temp_dic)
 
         event_count += len(batch.src)
-        if t[-1] > start_time + TIME_WINDOW_SIZE:
+        if t[-1] > start_time + config["TIME_WINDOW_SIZE"]:
             time_interval = ns_time_to_datetime_US(start_time) + "~" + ns_time_to_datetime_US(t[-1])
             end = time.perf_counter()
             time_with_loss[time_interval] = {
@@ -180,7 +199,7 @@ def load_data(cur,begin_time,end_time):
     #* graph = torch.load("./artifact/graph_7.TemporalData.simple").to(device=device)
 
     print("[*] Loading model")
-    memory, gnn, link_pred, neighbor_loader = torch.load(MODELS_PATH,map_location=device)
+    memory, gnn, link_pred, neighbor_loader = torch.load(config["ARTIFACT_DIR"] + "models/" + config["MODEL_NAME"] + ".pt",map_location=device)
     #* memory, gnn, link_pred, neighbor_loader = torch.load(f"{MODELS_DIR}/models.pt",map_location=device)
 
     return graphs, memory, gnn, link_pred, neighbor_loader, nodeid2msg
@@ -206,56 +225,10 @@ def test_data(
             link_pred=link_pred,
             neighbor_loader=neighbor_loader,
             nodeid2msg=nodeid2msg,
-            path=ARTIFACT_DIR + "graph_list"
+            path=config["ARTIFACT_DIR"] + "graph_list"
         )
         #* loss_list.append(loss)
     #* return loss_list
-
-def arg_parse(args: list[str]):
-    '''
-    arg_parse
-    '''
-    try:
-        if args[1] in ("--help","-h"):
-            print(HELP_MSG)
-        elif args[1] == "init":
-            dataset_path = "./"
-            dataset = "CADETS-E3"
-            for index,arg in enumerate(args):
-                if arg.lower() in ("-path","--path"):
-                    if args[index+1][-1] == "/":
-                        dataset_path = args[index+1]
-                    else:
-                        dataset_path = args[index+1][:-1]
-                if arg.lower() in ("-dataset","--dataset"):
-                    if args[index+1] in ("CADETS-E3","CADETS-E5","CADETS-TC"):
-                        dataset = args[index+1]
-                    else:
-                        return False, "error", "[*] Dataset Format provided is not allowed"
-            return "init",dataset_path,dataset
-        elif args[1] in ("run","investigate","analyse"):
-            begin_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-            end_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-            for index,arg in enumerate(args):
-                if arg.lower() in ("-begin","--begin"):
-                    begin_time = f"{args[index+1]} 00:00:00"
-                    try:
-                        if ":" in args[index+2]:
-                            begin_time = f"{args[index+1]} {args[index+2]}"
-                    except IndexError:
-                        pass
-                if arg.lower() in ("-end","--end"):
-                    end_time = f"{args[index+1]} 00:00:00"
-                    try:
-                        if ":" in args[index+2]:
-                            end_time = f"{args[index+1]} {args[index+2]}"
-                    except IndexError:
-                        pass
-            return args[1],begin_time,end_time
-        else:
-            return False, "error", "[*] Wrong Arguments!"
-    except IndexError:
-        return False, "error", "[*] Wrong Arguments!"
 
 def init():
     '''
@@ -285,54 +258,128 @@ def init():
     cur.execute(CREATE_OBJECTS_TABLE)
     connect.commit()
 
+def api(command: Command):
+    '''
+    work as api server
+    '''
+    app = Flask(__name__)
+    host = command.api_args.get("host",config["DEFAULT_HOST"])
+    port = command.api_args.get("port",config["DEFAULT_PORT"])
+
+    @app.route("/ping")
+    def ping():
+        return jsonify({
+            "status": "200 OK",
+            "msg": "pong!\n"
+            }), 200
+
+    @app.route("/api/<cmd>/<begin_time>/<end_time>")
+    def kids_api(cmd:str, begin_time, end_time):
+        cmd = cmd.lower()
+        if cmd not in ("run","test","analyse","investigate"):
+            return jsonify({
+                "status": "400 Bad Request",
+                "msg": f"To {cmd} is not allowed"
+                }), 400
+        run(begin_time,end_time,cmd)
+        return jsonify({
+            "status": "200 OK",
+            "msg": f"{cmd} successfully"
+            }), 200
+
+    @app.route("/config/update/<key>/<value>")
+    def update(key:str, value):
+        key = key.upper()
+        if key not in config.keys() or \
+            key in FORBIDDEN_KEYS:
+            return jsonify({
+                "status": "400 Bad Request",
+                "msg": f"Key {key} is not allowed"
+                }), 400
+        config[key] = value
+        return jsonify({
+            "status": "200 OK",
+            "msg": f"{key} has been updated to {value}"
+            }), 200
+
+    @app.route("/config/view")
+    def view():
+        data = deepcopy(config)
+        for key in FORBIDDEN_KEYS:
+            data.pop(key)
+        return jsonify({
+            "status":"200 OK",
+            "config":data
+            }), 200
+
+    app.run(
+        host=host,
+        port=port
+    )
+
+def run(begin_time, end_time, cmd):
+    '''
+    run KIDS engine
+    '''
+    if len(begin_time) < 20:
+        begin_time = begin_time + ".000000000"
+    if len(end_time) < 20:
+        end_time = end_time + ".000000000"
+    begin_timestamp = datetime_to_ns_time_US(begin_time)
+    end_timestamp = datetime_to_ns_time_US(end_time)
+    cur, connect = init_database_connection()
+    if cmd in ("run","test"):
+        graphs,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data(
+            cur=cur,
+            begin_time=begin_timestamp,
+            end_time=end_timestamp
+        )
+        #* loss_list = test_data()
+        test_data(
+            graphs=graphs,
+            memory=memory,
+            gnn=gnn,
+            link_pred=link_pred,
+            neighbor_loader=neighbor_loader,
+            nodeid2msg=nodeid2msg
+        )
+    if cmd in ("run","analyse"):
+        analyse(
+            cur=cur,
+            connect=connect,
+            begin_time=begin_timestamp,
+            end_time=end_timestamp
+        )
+    if cmd in ("run","investigate"):
+        investigate(
+            cur=cur,
+            connect=connect,
+            begin_time=begin_timestamp,
+            end_time=end_timestamp
+        )
+
 def main():
     '''
     Entrance of this Engine
     '''
-    arguments = arg_parse(sys.argv)
     try:
-        if not arguments[0]:
-            print(arguments[2])
-            sys.exit(1)
-        elif arguments[0] == "init":
-            init()
+        command = Command()
+        command.parse(sys.argv)
+        if command.help or not command.cmd:
+            print(HELP_MSG)
             sys.exit(0)
+        cmd = command.cmd
+        if cmd in ("init"):
+            init()
+        elif cmd in ("run", "investigate", "analyse"):
+            begin_time = command.begin_time
+            end_time = command.end_time
+            cmd = command.cmd
+            run(begin_time,end_time,cmd)
+        elif cmd in ("rpc", "flask", "api"):
+            api(command)
         else:
-            begin_time = arguments[1]
-            end_time = arguments[2]
-            begin_timestamp = datetime_to_ns_time_US(begin_time+".000000000")
-            end_timestamp = datetime_to_ns_time_US(end_time+".000000000")
-            cur, connect = init_database_connection()
-            if arguments[0] in ("run","analyse"):
-                graphs,memory,gnn,link_pred,neighbor_loader,nodeid2msg = load_data(
-                cur=cur,
-                begin_time=begin_timestamp,
-                end_time=end_timestamp
-                )
-                #* loss_list = test_data()
-                test_data(
-                   graphs=graphs,
-                   memory=memory,
-                   gnn=gnn,
-                    link_pred=link_pred,
-                    neighbor_loader=neighbor_loader,
-                    nodeid2msg=nodeid2msg
-                )
-                analyse(
-                    cur=cur,
-                    connect=connect,
-                    begin_time=begin_timestamp,
-                    end_time=end_timestamp
-                )
-            if arguments[0] in ("run","investigate"):
-                investigate(
-                    cur=cur,
-                    connect=connect,
-                    begin_time=begin_timestamp,
-                    end_time=end_timestamp
-                )
-    except IndexError:
-        sys.exit(1)
+            print("[*] Wrong Arguments. Try --help for more information")
     except KeyboardInterrupt:
         print("[*] Engine Terminated")
         sys.exit(0)

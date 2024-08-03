@@ -1,14 +1,17 @@
 '''
-Date: 2024-07-14 13:07:03
-LastEditTime: 2024-07-28 01:02:53
+Date: 2024-06-09 18:07:09
+LastEditTime: 2024-08-03 19:06:01
 Description: 
 '''
 '''
 Model Definition of KIDS Engine
 '''
 
-from utils import *
-from config import *
+import torch
+import torch.nn as nn
+from torch_geometric.nn import TGNMemory, TransformerConv
+import torch.nn.functional as F
+from torch.nn import Linear
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 criterion = nn.CrossEntropyLoss()
