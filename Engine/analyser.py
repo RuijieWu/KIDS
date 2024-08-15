@@ -3,14 +3,22 @@ Analyse System Logs
 '''
 
 import os
-import math
+
+from math import log as mathlog
+from copy import deepcopy
 
 import torch
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
 
-from copy import deepcopy
-from utils import save_aberration_statics,datetime_to_ns_time_US,ns_time_to_datetime_US,get_attack_list,std,mean,roc_auc_score
+from utils import (
+    save_aberration_statics,
+    datetime_to_ns_time_US,
+    ns_time_to_datetime_US,
+    get_attack_list,
+    std,mean,
+    roc_auc_score
+)
 from config import config
 # from model import *
 
@@ -43,7 +51,7 @@ def compute_IDF(rendering = False):
                         node_set[str(jdata['dstmsg'])].add(f_path)
     for key , value in node_set.items():
         include_count = len(value)
-        idf = math.log(len(file_list) / (include_count + 1))
+        idf = mathlog(len(file_list) / (include_count + 1))
         node_IDF[key] = idf
     if rendering:
         torch.save(node_IDF, config["ARTIFACT_DIR"] + "node_IDF")
@@ -105,14 +113,14 @@ def cal_set_rel(s1, s2, node_IDF, tw_list, recording = True):
     count = 0
     for i in new_s:
         if is_include_key_word(i) is True:
-            node_IDF[i] = math.log(len(tw_list) / (1 + len(tw_list)))
+            node_IDF[i] = mathlog(len(tw_list) / (1 + len(tw_list)))
 
         if i in node_IDF.keys():
             IDF = node_IDF[i]
         else:
-            IDF = math.log(len(tw_list) / (1))
+            IDF = mathlog(len(tw_list) / (1))
 
-        if IDF > (math.log(len(tw_list) * 0.9)):
+        if IDF > (mathlog(len(tw_list) * 0.9)):
             if recording:
                 logger.write(f"node:{i}, IDF:{IDF}\n")
             count += 1
@@ -161,7 +169,12 @@ def anomalous_queue_construction(
         added_que_flag = False
         for hq in history_list:
             for his_tw in hq:
-                if cal_set_rel(current_tw['nodeset'], his_tw['nodeset'], node_IDF, tw_list) != 0 and current_tw['name'] != his_tw['name']:
+                if cal_set_rel(
+                    current_tw['nodeset'],
+                    his_tw['nodeset'],
+                    node_IDF,
+                    tw_list
+                ) != 0 and current_tw['name'] != his_tw['name']:
                     hq.append(deepcopy(current_tw))
                     added_que_flag = True
                     break

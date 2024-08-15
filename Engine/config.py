@@ -3,7 +3,11 @@ Config for whole KIDS Engine
 '''
 
 from yaml import safe_load
-config = safe_load(open("./config.yaml","r"))
+from torch.cuda import is_available
+from torch import device
+
+config = safe_load(open("./config.yaml","r",encoding="utf-8"))
+device = device('cuda' if is_available() else 'cpu')
 
 ########################################################
 #
@@ -955,6 +959,13 @@ api:
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 7777
 DEFAULT_DATASET = "CADETS-E3"
+
+ALLOWED_CMD = (
+    "run",
+    "test",
+    "analyse",
+    "investigate"
+)
 
 FORBIDDEN_KEYS = (
     "EDGE_REVERSED",

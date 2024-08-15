@@ -258,7 +258,6 @@ def store_event(file_path, cur, connect, reverse, nodeid2msg, subject_uuid2hash,
     ex.execute_values(cur, sql, datalist, page_size=10000)
     connect.commit()
 
-
 if __name__ == "__main__":
     cur, connect = init_database_connection()
 

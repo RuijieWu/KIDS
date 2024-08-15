@@ -14,13 +14,16 @@ from flask import (
 #import numpy as np
 #from sklearn.feature_extraction import FeatureHasher
 from torch_geometric.data import *
+import torch.nn as nn
 from tqdm import tqdm
 
 from analyser import analyse
-#from model import *
+from model import cal_pos_edges_loss_multiclass
 from config import (
     config,
+    device,
     HELP_MSG,
+    ALLOWED_CMD,
     FORBIDDEN_KEYS
 )
 from utils import (
@@ -28,7 +31,8 @@ from utils import (
     gen_nodeid2msg,
     Command,
     datetime_to_ns_time_US,
-    ns_time_to_datetime_US
+    ns_time_to_datetime_US,
+    tensor_find,
 )
 from embedder import (
     gen_relation_onehot,
@@ -37,11 +41,6 @@ from embedder import (
 )
 from investigator import investigate
 
-#* device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-#* criterion = nn.CrossEntropyLoss()
-#* max_node_num = 268243  #! the number of nodes in node2id table +1
-#* min_dst_idx, max_dst_idx = 0, max_node_num
-#* assoc = torch.empty(max_node_num, dtype=torch.long, device=device)
 
 @torch.no_grad()
 def test(
@@ -63,6 +62,11 @@ def test(
     os.system(f"mkdir -p {path}")
     if recording:
         logger = open(config["LOG_DIR"] + "test.txt","a",encoding="utf-8")
+
+    criterion = nn.CrossEntropyLoss()
+    max_node_num = 268243  #! the number of nodes in node2id table +1
+    # min_dst_idx, max_dst_idx = 0, max_node_num
+    assoc = torch.empty(max_node_num, dtype=torch.long, device=device)
 
     memory.eval()
     gnn.eval()
@@ -139,7 +143,7 @@ def test(
             edge_list.append(temp_dic)
 
         event_count += len(batch.src)
-        if t[-1] > start_time + config["TIME_WINDOW_SIZE"]:
+        if t[-1] > start_time + int(config["TIME_WINDOW_SIZE"]):
             time_interval = ns_time_to_datetime_US(start_time) + "~" + ns_time_to_datetime_US(t[-1])
             end = time.perf_counter()
             time_with_loss[time_interval] = {
@@ -276,7 +280,7 @@ def api(command: Command):
     @app.route("/api/<cmd>/<begin_time>/<end_time>")
     def kids_api(cmd:str, begin_time, end_time):
         cmd = cmd.lower()
-        if cmd not in ("run","test","analyse","investigate"):
+        if cmd not in ALLOWED_CMD:
             return jsonify({
                 "status": "400 Bad Request",
                 "msg": f"To {cmd} is not allowed"
@@ -372,7 +376,7 @@ def main():
         cmd = command.cmd
         if cmd in ("init"):
             init()
-        elif cmd in ("run", "investigate", "analyse", "test"):
+        elif cmd in ALLOWED_CMD:
             begin_time = command.begin_time
             end_time = command.end_time
             cmd = command.cmd

@@ -1,9 +1,4 @@
 '''
-Date: 2024-06-09 18:07:09
-LastEditTime: 2024-08-16 00:39:40
-Description: 
-'''
-'''
 Model Definition of KIDS Engine
 '''
 
@@ -20,8 +15,6 @@ max_node_num = 268243  # the number of nodes in node2id table +1
 min_dst_idx, max_dst_idx = 0, max_node_num
 # Helper vector to map global node indices to local ones.
 assoc = torch.empty(max_node_num, dtype=torch.long, device=device)
-
-
 
 class GraphAttentionEmbedding(torch.nn.Module):
     def __init__(self, in_channels, out_channels, msg_dim, time_enc):
