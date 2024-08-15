@@ -15,6 +15,7 @@ def get_aberration_statics(cur, rendering):
     """
     cur.execute(sql)
     results = cur.fetchall()
+    count = 0
     if rendering:
         logger = open(config["LOG_DIR"] + "aberration_statics.csv","a",encoding="utf-8")
     for result in tqdm(results,desc="get_aberration_statics"):
@@ -22,6 +23,7 @@ def get_aberration_statics(cur, rendering):
             result = (f"{result[0]}",f"{result[1]}",*result[2:])
             if rendering:
                 logger.write(f"{result}\n")
+            count += 1
             print(
                 f"{result[0]}~{result[1]}.txt"
         #*f"{ns_time_to_datetime(result[2])[:-10]}~{ns_time_to_datetime(result[3])[:-10]} Average loss:{result[2]}"
@@ -33,6 +35,7 @@ def get_aberration_statics(cur, rendering):
         #        f"Anomalous edge count: {result[6]}\n"+\
         #        f"Loss Sum: {result[2]*result[3]}"
             )
+    print(count)
 
 def get_anomalous_actions(cur, rendering):
     '''

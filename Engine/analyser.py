@@ -3,12 +3,14 @@ Analyse System Logs
 '''
 
 import os
+import math
 
 import torch
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
 
-#from utils import *
+from copy import deepcopy
+from utils import save_aberration_statics,datetime_to_ns_time_US,ns_time_to_datetime_US,get_attack_list,std,mean,roc_auc_score
 from config import config
 # from model import *
 
@@ -18,7 +20,7 @@ def compute_IDF(rendering = False):
     '''
     node_IDF = {}
     file_list = []
-    file_path = config["ARTIFACT_DIR"] + "/graph_list/"
+    file_path = config["ARTIFACT_DIR"] + "graph_list/"
     file_l = os.listdir(file_path)
     for i in file_l:
         file_list.append(file_path + i)
@@ -160,13 +162,13 @@ def anomalous_queue_construction(
         for hq in history_list:
             for his_tw in hq:
                 if cal_set_rel(current_tw['nodeset'], his_tw['nodeset'], node_IDF, tw_list) != 0 and current_tw['name'] != his_tw['name']:
-                    hq.append(copy.deepcopy(current_tw))
+                    hq.append(deepcopy(current_tw))
                     added_que_flag = True
                     break
                 if added_que_flag:
                     break
         if added_que_flag is False:
-            temp_hq = [copy.deepcopy(current_tw)]
+            temp_hq = [deepcopy(current_tw)]
             history_list.append(temp_hq)
         index_count += 1
         edge_count = len(edge_list)

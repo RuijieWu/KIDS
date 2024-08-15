@@ -290,6 +290,7 @@ def api(command: Command):
     @app.route("/config/update/<key>/<value>")
     def update(key:str, value):
         key = key.upper()
+        value = value.replace('|','/')
         if key not in config.keys() or \
             key in FORBIDDEN_KEYS:
             return jsonify({
@@ -371,7 +372,7 @@ def main():
         cmd = command.cmd
         if cmd in ("init"):
             init()
-        elif cmd in ("run", "investigate", "analyse"):
+        elif cmd in ("run", "investigate", "analyse", "test"):
             begin_time = command.begin_time
             end_time = command.end_time
             cmd = command.cmd
