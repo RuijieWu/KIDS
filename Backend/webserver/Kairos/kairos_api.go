@@ -17,20 +17,10 @@ import (
 func DatetimeToNSTimestamp(dtStr string) int64 {
 	// 将字符串解析为 time.Time 对象
 	layout := "2006-01-02 15:04:05"
-	dt, err := time.Parse(layout, dtStr)
-	if err != nil {
-		log.Println("Error parsing datetime:", err)
-		return 0
-	}
-
-	// 计算纳秒级时间戳
-	sec := dt.UnixNano() / 1e9  // 秒级时间戳
-	nsec := dt.UnixNano() % 1e9 // 纳秒部分
-
-	// 合并秒级时间戳和纳秒部分为整数类型的纳秒级时间戳
-	nanoTimestamp := sec*1e9 + int64(nsec)
-	// log.Printf("Converted datetime %v to nanosecond timestamp %v\n", dt, nanoTimestamp)
-	return nanoTimestamp
+	// 注意是new york时区
+	loc, _ := time.LoadLocation("America/New_York")
+	dt, _ := time.ParseInLocation(layout, dtStr, loc)
+	return dt.UnixNano()
 }
 
 func GetActions(c *gin.Context) {
@@ -44,17 +34,62 @@ func GetActions(c *gin.Context) {
 	log.Printf("Received actions request with start time: %v, end time: %v\n", startTimeUnix, endTimeUnix)
 
 	// 查询数据库
-	var anomalousActions []AnomalousAction
-	var dangerousActions []DangerousAction
+	var anomalousActions []AnomalousAction = make([]AnomalousAction, 0)
+	var dangerousActions []DangerousAction = make([]DangerousAction, 0)
 
-	// 查询所有在时间段内的 AnomalousAction
-	if err := DB.Where("time >= ? AND time <= ?", startTimeUnix, endTimeUnix).Find(&anomalousActions).Error; err != nil {
+	// 查询所有在时间段内的 AnomalousAction，使用 DISTINCT 去重
+	if err := DB.Raw(`
+        SELECT DISTINCT ON (time, subject_name, action, object_name) *
+        FROM anomalous_actions_table
+        WHERE time >= ? AND time <= ?`, startTimeUnix, endTimeUnix).Scan(&anomalousActions).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anomalous actions"})
 		return
 	}
 
-	// 查询所有在时间段内的 DangerousAction
-	if err := DB.Where("time >= ? AND time <= ?", startTimeUnix, endTimeUnix).Find(&dangerousActions).Error; err != nil {
+	// 查询所有在时间段内的 DangerousAction，使用 DISTINCT 去重
+	if err := DB.Raw(`
+        SELECT DISTINCT ON (time, subject_name, action, object_name) *
+        FROM dangerous_actions_table
+        WHERE time >= ? AND time <= ?`, startTimeUnix, endTimeUnix).Scan(&dangerousActions).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query dangerous actions"})
+		return
+	}
+
+	// 返回结果
+	c.JSON(http.StatusOK, gin.H{
+		"anomalous_actions": gin.H{
+			"total": len(anomalousActions),
+			"data":  anomalousActions,
+		},
+		"dangerous_actions": gin.H{
+			"total": len(dangerousActions),
+			"data":  dangerousActions,
+		},
+	})
+}
+
+func GetGraphActions(c *gin.Context) {
+	// 获取查询参数
+	graphIndex := c.Query("graph_index")
+
+	// 查询数据库
+	var anomalousActions []AnomalousAction = make([]AnomalousAction, 0)
+	var dangerousActions []DangerousAction = make([]DangerousAction, 0)
+
+	// 查询所有在时间段内的 AnomalousAction，使用 DISTINCT 去重
+	if err := DB.Raw(`
+        SELECT DISTINCT ON (time, subject_name, action, object_name) *
+        FROM anomalous_actions_table
+        WHERE graph_index = ?`, graphIndex).Scan(&anomalousActions).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anomalous actions"})
+		return
+	}
+
+	// 查询所有在时间段内的 DangerousAction，使用 DISTINCT 去重
+	if err := DB.Raw(`
+        SELECT DISTINCT ON (time, subject_name, action, object_name) *
+        FROM dangerous_actions_table
+        WHERE graph_index = ?`, graphIndex).Scan(&dangerousActions).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query dangerous actions"})
 		return
 	}
@@ -76,7 +111,7 @@ func GetSubjects(c *gin.Context) {
 	// 获取查询参数
 	startTimeStr := c.Query("start_time")
 	endTimeStr := c.Query("end_time")
-	limitStr := c.DefaultQuery("limit", "5") // 默认 limit 为 5
+	limitStr := c.DefaultQuery("limit", "99999") // 默认 limit 为 99999
 
 	// 将时间字符串转换为 Unix 时间戳
 	startTimeUnix := DatetimeToNSTimestamp(startTimeStr)
@@ -92,29 +127,27 @@ func GetSubjects(c *gin.Context) {
 	log.Printf("Received subjects request with start time: %v, end time: %v, limit: %d\n", startTimeUnix, endTimeUnix, limit)
 
 	// 查询数据库
-	var anomalousSubjects []AnomalousSubject
-	var dangerousSubjects []DangerousSubject
+	var anomalousSubjects []AnomalousSubject = make([]AnomalousSubject, 0)
+	var dangerousSubjects []DangerousSubject = make([]DangerousSubject, 0)
 
-	// 查询所有在时间段内的 AnomalousSubject
-	if err := DB.Model(&AnomalousSubject{}).
-		Select("time, subject_type, subject_name, COUNT(*) as count").
-		Where("time >= ? AND time <= ?", startTimeUnix, endTimeUnix).
-		Group("time, subject_type, subject_name").
-		Order("count DESC").
-		Limit(limit).
-		Find(&anomalousSubjects).Error; err != nil {
+	// 查询所有在时间段内的 AnomalousSubject，使用 DISTINCT 去重
+	if err := DB.Raw(`
+        SELECT DISTINCT ON (time, subject_name) *
+        FROM anomalous_subjects_table
+        WHERE time >= ? AND time <= ?
+        ORDER BY time DESC
+        LIMIT ?`, startTimeUnix, endTimeUnix, limit).Scan(&anomalousSubjects).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anomalous subjects"})
 		return
 	}
 
-	// 查询所有在时间段内的 DangerousSubject
-	if err := DB.Model(&DangerousSubject{}).
-		Select("time, subject_type, subject_name, COUNT(*) as count").
-		Where("time >= ? AND time <= ?", startTimeUnix, endTimeUnix).
-		Group("time, subject_type, subject_name").
-		Order("count DESC").
-		Limit(limit).
-		Find(&dangerousSubjects).Error; err != nil {
+	// 查询所有在时间段内的 DangerousSubject，使用 DISTINCT 去重
+	if err := DB.Raw(`
+        SELECT DISTINCT ON (time, subject_name) *
+        FROM dangerous_subjects_table
+        WHERE time >= ? AND time <= ?
+        ORDER BY time DESC
+        LIMIT ?`, startTimeUnix, endTimeUnix, limit).Scan(&dangerousSubjects).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query dangerous subjects"})
 		return
 	}
@@ -132,11 +165,89 @@ func GetSubjects(c *gin.Context) {
 	})
 }
 
+func GetGraphSubjects(c *gin.Context) {
+	// 获取查询参数
+	graphIndex := c.Query("graph_index")
+
+	// 查询数据库
+	var anomalousSubjects []AnomalousSubject = make([]AnomalousSubject, 0)
+	var dangerousSubjects []DangerousSubject = make([]DangerousSubject, 0)
+
+	// 查询所有在时间段内的 AnomalousSubject，使用 DISTINCT 去重
+	if err := DB.Raw(`
+        SELECT DISTINCT ON (time, subject_name) *
+        FROM anomalous_subjects_table
+        WHERE graph_index = ?`, graphIndex).Scan(&anomalousSubjects).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anomalous subjects"})
+		return
+	}
+
+	// 查询所有在时间段内的 DangerousSubject，使用 DISTINCT 去重
+	if err := DB.Raw(`
+        SELECT DISTINCT ON (time, subject_name) *
+        FROM dangerous_subjects_table
+        WHERE graph_index = ?`, graphIndex).Scan(&dangerousSubjects).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query dangerous subjects"})
+		return
+	}
+
+	// 返回结果
+	c.JSON(http.StatusOK, gin.H{
+		"anomalous_subjects": gin.H{
+			"total": len(anomalousSubjects),
+			"data":  anomalousSubjects,
+		},
+		"dangerous_subjects": gin.H{
+			"total": len(dangerousSubjects),
+			"data":  dangerousSubjects,
+		},
+	})
+}
+
+func GetGraphObjects(c *gin.Context) {
+	// 获取查询参数
+	graphIndex := c.Query("graph_index")
+
+	// 查询数据库
+	var anomalousObjects []AnomalousObject = make([]AnomalousObject, 0)
+	var dangerousObjects []DangerousObject = make([]DangerousObject, 0)
+
+	// 查询所有在时间段内的 AnomalousObject，使用 DISTINCT 去重
+	if err := DB.Raw(`
+		SELECT DISTINCT ON (time, object_name) *
+		FROM anomalous_objects_table
+		WHERE graph_index = ?`, graphIndex).Scan(&anomalousObjects).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anomalous objects"})
+		return
+	}
+
+	// 查询所有在时间段内的 DangerousObject，使用 DISTINCT 厍重
+	if err := DB.Raw(`
+		SELECT DISTINCT ON (time, object_name) *
+		FROM dangerous_objects_table
+		WHERE graph_index = ?`, graphIndex).Scan(&dangerousObjects).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query dangerous objects"})
+		return
+	}
+
+	// 返回结果
+	c.JSON(http.StatusOK, gin.H{
+		"anomalous_objects": gin.H{
+			"total": len(anomalousObjects),
+			"data":  anomalousObjects,
+		},
+		"dangerous_objects": gin.H{
+			"total": len(dangerousObjects),
+			"data":  dangerousObjects,
+		},
+	})
+}
+
 func GetObjects(c *gin.Context) {
 	// 获取查询参数
 	startTimeStr := c.Query("start_time")
 	endTimeStr := c.Query("end_time")
-	limitStr := c.DefaultQuery("limit", "5") // 默认 limit 为 5
+	limitStr := c.DefaultQuery("limit", "99999") // 默认 limit 为 99999
 
 	startTime := DatetimeToNSTimestamp(startTimeStr)
 	endTime := DatetimeToNSTimestamp(endTimeStr)
@@ -151,29 +262,27 @@ func GetObjects(c *gin.Context) {
 	log.Printf("Received objects request with start time: %v, end time: %v, limit: %d\n", startTime, endTime, limit)
 
 	// 查询数据库
-	var anomalousObjects []AnomalousObject
-	var dangerousObjects []DangerousObject
+	var anomalousObjects []AnomalousObject = make([]AnomalousObject, 0)
+	var dangerousObjects []DangerousObject = make([]DangerousObject, 0)
 
-	// 查询所有在时间段内的 AnomalousObject
-	if err := DB.Model(&AnomalousObject{}).
-		Select("time, object_type, object_name, COUNT(*) as count").
-		Where("time >= ? AND time <= ?", startTime, endTime).
-		Group("time, object_type, object_name").
-		Order("count DESC").
-		Limit(limit).
-		Find(&anomalousObjects).Error; err != nil {
+	// 查询所有在时间段内的 AnomalousObject，使用 DISTINCT 去重
+	if err := DB.Raw(`
+        SELECT DISTINCT ON (time, object_name) *
+        FROM anomalous_objects_table
+        WHERE time >= ? AND time <= ?
+        ORDER BY time DESC
+        LIMIT ?`, startTime, endTime, limit).Scan(&anomalousObjects).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anomalous objects"})
 		return
 	}
 
-	// 查询所有在时间段内的 DangerousObject
-	if err := DB.Model(&DangerousObject{}).
-		Select("time, object_type, object_name, COUNT(*) as count").
-		Where("time >= ? AND time <= ?", startTime, endTime).
-		Group("time, object_type, object_name").
-		Order("count DESC").
-		Limit(limit).
-		Find(&dangerousObjects).Error; err != nil {
+	// 查询所有在时间段内的 DangerousObject，使用 DISTINCT 去重
+	if err := DB.Raw(`
+        SELECT DISTINCT ON (time, object_name) *
+        FROM dangerous_objects_table
+        WHERE time >= ? AND time <= ?
+        ORDER BY time DESC
+        LIMIT ?`, startTime, endTime, limit).Scan(&dangerousObjects).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query dangerous objects"})
 		return
 	}
@@ -214,7 +323,7 @@ func GetAberrationStatics(c *gin.Context) {
 	})
 }
 
-func GetGraphVisual(c *gin.Context) {
+func GetGraphInfo(c *gin.Context) {
 	// 获取查询参数
 	startTimeStr := c.Query("start_time")
 	endTimeStr := c.Query("end_time")
@@ -233,7 +342,7 @@ func GetGraphVisual(c *gin.Context) {
 	}
 
 	var results []gin.H
-
+	// TODO
 	// 遍历文件，筛选符合时间范围的文件名
 	for _, file := range files {
 		// 提取文件名中的时间戳
@@ -246,69 +355,85 @@ func GetGraphVisual(c *gin.Context) {
 			continue
 		}
 
+		graphIndex := strings.ReplaceAll(prefix, "", ":")
+		log.Printf("Parsed prefix: %v\n", prefix)
+
 		if fileStartTime >= startTime && fileEndTime <= endTime {
-			// 查询在这个时间范围内的 Anomalous 和 Dangerous 的 actions 数量
-			var anomalousActionCount, dangerousActionCount int64
-			if err := DB.Model(&AnomalousAction{}).
-				Where("time >= ? AND time <= ?", fileStartTime, fileEndTime).
-				Count(&anomalousActionCount).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count anomalous actions"})
-				return
-			}
-			if err := DB.Model(&DangerousAction{}).
-				Where("time >= ? AND time <= ?", fileStartTime, fileEndTime).
-				Count(&dangerousActionCount).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count dangerous actions"})
+			// 查询数据库
+			var anomalousActions []AnomalousAction = make([]AnomalousAction, 0)
+			var dangerousActions []DangerousAction = make([]DangerousAction, 0)
+
+			// 查询所有在时间段内的 AnomalousAction，使用 DISTINCT 去重
+			if err := DB.Raw(`
+				SELECT DISTINCT ON (time, subject_name, action, object_name) *
+				FROM anomalous_actions_table
+				WHERE graph_index = ?`, graphIndex).Scan(&anomalousActions).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anomalous actions"})
 				return
 			}
 
-			// 查询在这个时间范围内的 Anomalous 和 Dangerous 的 subjects 数量
-			var anomalousSubjectCount, dangerousSubjectCount int64
-			if err := DB.Model(&AnomalousSubject{}).
-				Where("time >= ? AND time <= ?", fileStartTime, fileEndTime).
-				Count(&anomalousSubjectCount).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count anomalous subjects"})
-				return
-			}
-			if err := DB.Model(&DangerousSubject{}).
-				Where("time >= ? AND time <= ?", fileStartTime, fileEndTime).
-				Count(&dangerousSubjectCount).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count dangerous subjects"})
+			// 查询所有在时间段内的 DangerousAction，使用 DISTINCT 去重
+			if err := DB.Raw(`
+				SELECT DISTINCT ON (time, subject_name, action, object_name) *
+				FROM dangerous_actions_table
+				WHERE graph_index = ?`, graphIndex).Scan(&dangerousActions).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query dangerous actions"})
 				return
 			}
 
-			// 查询在这个时间范围内的 Anomalous 和 Dangerous 的 objects 数量
-			var anomalousObjectCount, dangerousObjectCount int64
-			if err := DB.Model(&AnomalousObject{}).
-				Where("time >= ? AND time <= ?", fileStartTime, fileEndTime).
-				Count(&anomalousObjectCount).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count anomalous objects"})
-				return
-			}
-			if err := DB.Model(&DangerousObject{}).
-				Where("time >= ? AND time <= ?", fileStartTime, fileEndTime).
-				Count(&dangerousObjectCount).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count dangerous objects"})
+			// 查询所有在时间段内的 AnomalousSubject，使用 DISTINCT 去重
+			var anomalousSubjects []AnomalousSubject = make([]AnomalousSubject, 0)
+			var dangerousSubjects []DangerousSubject = make([]DangerousSubject, 0)
+
+			// 查询所有在时间段内的 AnomalousSubject，使用 DISTINCT 去重
+			if err := DB.Raw(`
+				SELECT DISTINCT ON (time, subject_name) *
+				FROM anomalous_subjects_table
+				WHERE graph_index = ?`, graphIndex).Scan(&anomalousSubjects).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anomalous subjects"})
 				return
 			}
 
-			// 读取文件内容并进行Base64编码
-			fileContent, err := os.ReadFile(file)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
+			// 查询所有在时间段内的 DangerousSubject，使用 DISTINCT 去重
+			if err := DB.Raw(`
+				SELECT DISTINCT ON (time, subject_name) *
+				FROM dangerous_subjects_table
+				WHERE graph_index = ?`, graphIndex).Scan(&dangerousSubjects).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query dangerous subjects"})
+				return
+			}
+
+			// 查询所有在时间段内的 AnomalousObject，使用 DISTINCT 去重
+			var anomalousObjects []AnomalousObject = make([]AnomalousObject, 0)
+			var dangerousObjects []DangerousObject = make([]DangerousObject, 0)
+
+			// 查询所有在时间段内的 AnomalousObject，使用 DISTINCT 去重
+			if err := DB.Raw(`
+				SELECT DISTINCT ON (time, object_name) *
+				FROM anomalous_objects_table
+				WHERE graph_index = ?`, graphIndex).Scan(&anomalousObjects).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anomalous objects"})
+				return
+			}
+
+			// 查询所有在时间段内的 DangerousObject，使用 DISTINCT 厍重
+			if err := DB.Raw(`
+				SELECT DISTINCT ON (time, object_name) *
+				FROM dangerous_objects_table
+				WHERE graph_index = ?`, graphIndex).Scan(&dangerousObjects).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query dangerous objects"})
 				return
 			}
 
 			// 构造结果
 			result := gin.H{
 				"file_name":               base,
-				"file_content":            base64.StdEncoding.EncodeToString(fileContent),
-				"anomalous_action_count":  anomalousActionCount,
-				"dangerous_action_count":  dangerousActionCount,
-				"anomalous_subject_count": anomalousSubjectCount,
-				"dangerous_subject_count": dangerousSubjectCount,
-				"anomalous_object_count":  anomalousObjectCount,
-				"dangerous_object_count":  dangerousObjectCount,
+				"anomalous_action_count":  len(anomalousActions),
+				"dangerous_action_count":  len(dangerousActions),
+				"anomalous_subject_count": len(anomalousSubjects),
+				"dangerous_subject_count": len(dangerousSubjects),
+				"anomalous_object_count":  len(anomalousObjects),
+				"dangerous_object_count":  len(dangerousObjects),
 			}
 			results = append(results, result)
 		}
@@ -321,7 +446,6 @@ func GetGraphVisual(c *gin.Context) {
 	})
 }
 
-// 解析文件名中的时间戳范围
 // 解析文件名中的时间戳范围
 func parseTimestamp(prefix string) (startTime int64, endTime int64, err error) {
 	// 替换非标准字符
@@ -349,19 +473,40 @@ func parseTimestamp(prefix string) (startTime int64, endTime int64, err error) {
 	return startTime, endTime, nil
 }
 
+func GetGraphContent(c *gin.Context) {
+	// 获取查询参数
+	fileName := c.Query("file_name")
+	fileName = strings.ReplaceAll(fileName, ":", "")
+	// 指定的文件夹路径
+	dir := "../../Engine/artifact/graph_visual"
+	file := filepath.Join(dir, fileName)
+	log.Printf("Received graph content request for file: %v\n", file)
+
+	// 读取文件内容并进行Base64编码
+	fileContent, err := os.ReadFile(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
+		return
+	}
+
+	// 返回文件内容
+	c.JSON(http.StatusOK, gin.H{
+		"file_name":    fileName,
+		"file_content": base64.StdEncoding.EncodeToString(fileContent),
+	})
+}
+
 func NsDatetimeToNSTimestamp(dtStr string) int64 {
 	// 将字符串解析为 time.Time 对象
 	layout := "2006-01-02 15:04:05.999999999"
-	dt, err := time.Parse(layout, dtStr)
+	loc, _ := time.LoadLocation("America/New_York")
+	dt, err := time.ParseInLocation(layout, dtStr, loc)
 	if err != nil {
 		log.Println("Error parsing datetime:", err)
 		return 0
 	}
-	// 计算纳秒级时间戳
-	sec := dt.UnixNano() / 1e9  // 秒级时间戳
-	nsec := dt.UnixNano() % 1e9 // 纳秒部分
 
 	// 合并秒级时间戳和纳秒部分为整数类型的纳秒级时间戳
-	nanoTimestamp := sec*1e9 + int64(nsec)
+	nanoTimestamp := dt.UnixNano()
 	return nanoTimestamp
 }

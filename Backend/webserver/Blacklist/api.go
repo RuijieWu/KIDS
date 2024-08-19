@@ -67,10 +67,27 @@ func SetBlackList(c *gin.Context) {
 // find all blacklist actions with flag = 0; send the blacklist actions to the frontend and set the flag to 1
 func GetBlackList(c *gin.Context) {
 	var blackListActions []BlacklistAction
+	var blackListFlag1 []BlacklistAction
 	DB.Where("flag = ?", 0).Find(&blackListActions)
+	// apend 50 lateset actions with flag = 1
+	DB.Where("flag = ?", 1).Order("timestamp_rec desc").Limit(50).Find(&blackListFlag1)
+	blackListActions = append(blackListActions, blackListFlag1...)
 	c.JSON(http.StatusOK, blackListActions)
 	for _, blackListAction := range blackListActions {
 		blackListAction.Flag = 1
 		DB.Save(&blackListAction)
 	}
+}
+
+func SetWhiteList(c *gin.Context) {
+	var blackList BlackList
+	err := c.BindJSON(&blackList)
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	//clear the table
+
+	c.JSON(http.StatusOK, gin.H{"message": "success"})
 }

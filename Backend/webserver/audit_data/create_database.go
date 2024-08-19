@@ -1,70 +1,102 @@
 package audit_data
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
+	"github.com/beltran/gohive"
 	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
+var Connection *gohive.Connection
 
 func InitDatabaseConnection() {
 	dsn := "host=/var/run/postgresql/ user=postgres password=postgres dbname=tc_cadet_dataset_db port=5432 sslmode=disable TimeZone=Asia/Shanghai client_encoding=UTF8"
 	var err error
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		log.Printf("Failed to connect to database: %v", err)
 		log.Fatal("failed to connect database")
 	}
+	// delete all tables
+	DB.Migrator().DropTable(&NetFlowNode{}, &SubjectNode{}, &FileNode{}, &NodeID{}, &Event{})
 
 	// AutoMigrate will create the tables, adding missing columns and indexes
 	if err := DB.AutoMigrate(&NetFlowNode{}, &SubjectNode{}, &FileNode{}, &NodeID{}, &Event{}); err != nil {
 		log.Printf("Failed to migrate database: %v", err)
 		// Perform manual migration
-		manualMigration()
+		// manualMigration()
 		log.Fatal("failed to migrate database")
 	}
 
 	log.Println("Database initialized successfully")
+
+	// // Connect to Hive
+	// configuration := gohive.NewConnectConfiguration()
+	// configuration.Service = "hive"
+	// connection, err := gohive.Connect("localhost", 10000, "NONE", configuration)
+	// if err != nil {
+	// 	log.Printf("Failed to connect to Hive: %v", err)
+	// 	log.Fatal("Failed to connect to Hive")
+	// }
+
+	// Connection = connection
+
+	// // delete data in Hive
+	// cursor := Connection.Cursor()
+	// ctx := context.Background()
+	// cursor.Exec(ctx, "TRUNCATE TABLE netflow_node_table")
+	// cursor.Exec(ctx, "TRUNCATE TABLE subject_node_table")
+	// cursor.Exec(ctx, "TRUNCATE TABLE file_node_table")
+	// cursor.Exec(ctx, "TRUNCATE TABLE node2id")
+	// cursor.Exec(ctx, "TRUNCATE TABLE event_table")
+
+	// log.Println("Hive connection established successfully")
 }
 
-func manualMigration() {
-	// Create the table if it doesn't exist
-	if err := DB.Exec("CREATE TABLE IF NOT EXISTS node2id (id SERIAL PRIMARY KEY, hash_id TEXT NOT NULL, node_type TEXT NOT NULL, msg TEXT NOT NULL, index_id BIGINT NOT NULL)").Error; err != nil {
-		log.Printf("Failed to create table node2id: %v", err)
-		log.Fatal("failed to create table node2id")
-	}
+// func manualMigration() {
+// 	// Create the table if it doesn't exist
+// 	if err := DB.Exec("CREATE TABLE IF NOT EXISTS node2id (id SERIAL PRIMARY KEY, hash_id TEXT NOT NULL, node_type TEXT NOT NULL, msg TEXT NOT NULL, index_id BIGINT NOT NULL)").Error; err != nil {
+// 		log.Printf("Failed to create table node2id: %v", err)
+// 		log.Fatal("failed to create table node2id")
+// 	}
 
-	// Create the table if it doesn't exist
-	if err := DB.Exec("CREATE TABLE IF NOT EXISTS event_table (id SERIAL PRIMARY KEY, src_node TEXT NOT NULL, src_index_id TEXT NOT NULL, operation TEXT NOT NULL, dst_node TEXT NOT NULL, dst_index_id TEXT NOT NULL, timestamp_rec BIGINT NOT NULL)").Error; err != nil {
-		log.Printf("Failed to create table event_table: %v", err)
-		log.Fatal("failed to create table event_table")
-	}
+// 	// Create the table if it doesn't exist
+// 	if err := DB.Exec("CREATE TABLE IF NOT EXISTS event_table (id SERIAL PRIMARY KEY, src_node TEXT NOT NULL, src_index_id TEXT NOT NULL, operation TEXT NOT NULL, dst_node TEXT NOT NULL, dst_index_id TEXT NOT NULL, timestamp_rec BIGINT NOT NULL)").Error; err != nil {
+// 		log.Printf("Failed to create table event_table: %v", err)
+// 		log.Fatal("failed to create table event_table")
+// 	}
 
-	// Create the table if it doesn't exist
-	if err := DB.Exec("CREATE TABLE IF NOT EXISTS netflow_node_table (id SERIAL PRIMARY KEY, node_uuid TEXT NOT NULL, hash_id TEXT NOT NULL, src_addr TEXT NOT NULL, src_port TEXT NOT NULL, dst_addr TEXT NOT NULL, dst_port TEXT NOT NULL)").Error; err != nil {
-		log.Printf("Failed to create table netflow_node_table: %v", err)
-		log.Fatal("failed to create table netflow_node_table")
-	}
+// 	// Create the table if it doesn't exist
+// 	if err := DB.Exec("CREATE TABLE IF NOT EXISTS netflow_node_table (id SERIAL PRIMARY KEY, node_uuid TEXT NOT NULL, hash_id TEXT NOT NULL, src_addr TEXT NOT NULL, src_port TEXT NOT NULL, dst_addr TEXT NOT NULL, dst_port TEXT NOT NULL)").Error; err != nil {
+// 		log.Printf("Failed to create table netflow_node_table: %v", err)
+// 		log.Fatal("failed to create table netflow_node_table")
+// 	}
 
-	// Create the table if it doesn't exist
-	if err := DB.Exec("CREATE TABLE IF NOT EXISTS subject_node_table (id SERIAL PRIMARY KEY, node_uuid TEXT NOT NULL, hash_id TEXT NOT NULL, exec TEXT NOT NULL)").Error; err != nil {
-		log.Printf("Failed to create table subject_node_table: %v", err)
-		log.Fatal("failed to create table subject_node_table")
-	}
+// 	// Create the table if it doesn't exist
+// 	if err := DB.Exec("CREATE TABLE IF NOT EXISTS subject_node_table (id SERIAL PRIMARY KEY, node_uuid TEXT NOT NULL, hash_id TEXT NOT NULL, exec TEXT NOT NULL)").Error; err != nil {
+// 		log.Printf("Failed to create table subject_node_table: %v", err)
+// 		log.Fatal("failed to create table subject_node_table")
+// 	}
 
-	// Create the table if it doesn't exist
-	if err := DB.Exec("CREATE TABLE IF NOT EXISTS file_node_table (id SERIAL PRIMARY KEY, node_uuid TEXT NOT NULL, hash_id TEXT NOT NULL, path TEXT NOT NULL)").Error; err != nil {
-		log.Printf("Failed to create table file_node_table: %v", err)
-		log.Fatal("failed to create table file_node_table")
-	}
-}
+// 	// Create the table if it doesn't exist
+// 	if err := DB.Exec("CREATE TABLE IF NOT EXISTS file_node_table (id SERIAL PRIMARY KEY, node_uuid TEXT NOT NULL, hash_id TEXT NOT NULL, path TEXT NOT NULL)").Error; err != nil {
+// 		log.Printf("Failed to create table file_node_table: %v", err)
+// 		log.Fatal("failed to create table file_node_table")
+// 	}
+// }
 
 type NetFlowNode struct {
 	gorm.Model
@@ -349,4 +381,135 @@ func InsertEvents(events Events) {
 
 	processed := make(map[string]bool)
 	storeEvent(DB, events, processed, nodeHash2Index, subjectUUID2Hash, fileUUID2Hash, netUUID2Hash)
+	// migrateHive()
+}
+
+func migrateHive() {
+	// Migrate the data to Hive
+	cursor := Connection.Cursor()
+	log.Println("Migrating data to Hive")
+	ctx := context.Background()
+	var maxID string
+
+	// NetFlow Node Table Migration
+	cursor.Exec(ctx, "SELECT MAX(id) FROM netflow_node_table")
+	cursor.FetchOne(ctx, &maxID)
+	log.Printf("Max ID in Hive: %s", maxID)
+	var netFlowNodes []NetFlowNode
+	if maxID == "" {
+		DB.Find(&netFlowNodes)
+		log.Println("No data in Hive, copying all data")
+	} else {
+		DB.Find(&netFlowNodes).Where("id > ?", maxID)
+	}
+
+	// Collecting all insert values
+	var netFlowValues []string
+	for _, node := range netFlowNodes {
+		netFlowValues = append(netFlowValues, fmt.Sprintf("('%s', '%s', '%s', '%s', '%s', '%s')", node.UUID, node.Hash, node.LocalAddr, node.LocalPort, node.RemoteAddr, node.RemotePort))
+	}
+
+	// Batch Insert for NetFlow Nodes
+	if len(netFlowValues) > 0 {
+		query := "INSERT INTO netflow_node_table (node_uuid, hash_id, src_addr, src_port, dst_addr, dst_port) VALUES " + strings.Join(netFlowValues, ",")
+		cursor.Exec(ctx, query)
+	}
+
+	// Subject Node Table Migration
+	cursor.Exec(ctx, "SELECT MAX(id) FROM subject_node_table")
+	cursor.FetchOne(ctx, &maxID)
+	log.Printf("Max ID in Hive: %s", maxID)
+	var subjectNodes []SubjectNode
+	if maxID == "" {
+		DB.Find(&subjectNodes)
+		log.Println("No data in Hive, copying all data")
+	} else {
+		DB.Find(&subjectNodes).Where("id > ?", maxID)
+	}
+
+	// Collecting all insert values
+	var subjectValues []string
+	for _, node := range subjectNodes {
+		subjectValues = append(subjectValues, fmt.Sprintf("('%s', '%s', '%s')", node.UUID, node.Hash, node.Exec))
+	}
+
+	// Batch Insert for Subject Nodes
+	if len(subjectValues) > 0 {
+		query := "INSERT INTO subject_node_table (node_uuid, hash_id, exec) VALUES " + strings.Join(subjectValues, ",")
+		cursor.Exec(ctx, query)
+	}
+
+	// File Node Table Migration
+	cursor.Exec(ctx, "SELECT MAX(id) FROM file_node_table")
+	cursor.FetchOne(ctx, &maxID)
+	log.Printf("Max ID in Hive: %s", maxID)
+	var fileNodes []FileNode
+	if maxID == "" {
+		DB.Find(&fileNodes)
+		log.Println("No data in Hive, copying all data")
+	} else {
+		DB.Find(&fileNodes).Where("id > ?", maxID)
+	}
+
+	// Collecting all insert values
+	var fileValues []string
+	for _, node := range fileNodes {
+		fileValues = append(fileValues, fmt.Sprintf("('%s', '%s', '%s')", node.UUID, node.Hash, node.Path))
+	}
+
+	// Batch Insert for File Nodes
+	if len(fileValues) > 0 {
+		query := "INSERT INTO file_node_table (node_uuid, hash_id, path) VALUES " + strings.Join(fileValues, ",")
+		cursor.Exec(ctx, query)
+	}
+
+	// Event Table Migration
+	cursor.Exec(ctx, "SELECT MAX(id) FROM event_table")
+	cursor.FetchOne(ctx, &maxID)
+	log.Printf("Max ID in Hive: %s", maxID)
+	var events []Event
+	if maxID == "" {
+		DB.Find(&events)
+		log.Println("No data in Hive, copying all data")
+	} else {
+		DB.Find(&events).Where("id > ?", maxID)
+	}
+
+	// Collecting all insert values
+	var eventValues []string
+	for _, event := range events {
+		eventValues = append(eventValues, fmt.Sprintf("('%s', '%s', '%s', '%s', '%s', '%d')", event.SrcNode, event.SrcIndexID, event.Operation, event.DstNode, event.DstIndexID, event.TimestampRec))
+	}
+
+	// Batch Insert for Events
+	if len(eventValues) > 0 {
+		query := "INSERT INTO event_table (src_node, src_index_id, operation, dst_node, dst_index_id, timestamp_rec) VALUES " + strings.Join(eventValues, ",")
+		cursor.Exec(ctx, query)
+	}
+
+	// Node2ID Table Migration
+	cursor.Exec(ctx, "SELECT MAX(id) FROM node2id")
+	cursor.FetchOne(ctx, &maxID)
+	log.Printf("Max ID in Hive: %s", maxID)
+	var nodeList []NodeID
+	if maxID == "" {
+		DB.Find(&nodeList)
+		log.Println("No data in Hive, copying all data")
+	} else {
+		DB.Find(&nodeList).Where("id > ?", maxID)
+	}
+
+	// Collecting all insert values
+	var nodeValues []string
+	for _, node := range nodeList {
+		nodeValues = append(nodeValues, fmt.Sprintf("('%s', '%s', '%s', '%d')", node.Hash, node.Type, node.Msg, node.Index))
+	}
+
+	// Batch Insert for Node2ID
+	if len(nodeValues) > 0 {
+		query := "INSERT INTO node2id (src_node, src_index_id, operation, dst_node, dst_index_id) VALUES " + strings.Join(nodeValues, ",")
+		cursor.Exec(ctx, query)
+	}
+
+	cursor.Close()
 }
