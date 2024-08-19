@@ -1,0 +1,23 @@
+{
+    "data": [
+        {
+            "anomalous_action_count": 51,
+            "anomalous_object_count": 50,
+            "anomalous_subject_count": 49,
+            "dangerous_action_count": 0,
+            "dangerous_object_count": 0,
+            "dangerous_subject_count": 0,
+            "file_name": "2018-04-03 112418.401961411~2018-04-03 160448.801584755_0.png"
+        },
+        {
+            "anomalous_action_count": 38,
+            "anomalous_object_count": 38,
+            "anomalous_subject_count": 34,
+            "dangerous_action_count": 0,
+            "dangerous_object_count": 0,
+            "dangerous_subject_count": 0,
+            "file_name": "2018-04-03 113001.071955493~2018-04-03 160001.051590643_0.png"
+        }
+    ],
+    "total": 2
+}

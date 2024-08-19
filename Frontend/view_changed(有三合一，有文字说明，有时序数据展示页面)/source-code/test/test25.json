@@ -1,0 +1,46 @@
+{
+    "data_warehouse":{
+        "data":[
+            {
+                "Name": "warehouse1",
+                "AllCapacity":1000,
+                "UsedCapacity":500,
+                "StoredData":"条数",
+                "DataNodes":[
+                    {
+                        "Name": "node1",
+                        "AllCapacity":500,
+                        "UsedCapacity":250,
+                        "StoredData":"条数"
+                    },
+                    {
+                        "Name": "node1",
+                        "AllCapacity":500,
+                        "UsedCapacity":250,
+                        "StoredData":"条数"
+                    }
+                ]
+            },
+            {
+                "Name": "warehouse2",
+                "AllCapacity":1000,
+                "UsedCapacity":500,
+                "StoredData":"条数",
+                "DataNodes":[
+                    {
+                        "Name": "node1",
+                        "AllCapacity":500,
+                        "UsedCapacity":250,
+                        "StoredData":"条数"
+                    },
+                    {
+                        "Name": "node1",
+                        "AllCapacity":500,
+                        "UsedCapacity":250,
+                        "StoredData":"条数"
+                    }
+                ]
+            }
+        ]
+    }
+}
