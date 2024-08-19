@@ -2,9 +2,11 @@ package Kairos
 
 import (
 	"log"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
@@ -28,7 +30,9 @@ func (AberrationStaticsTable) TableName() string {
 func InitKairosDatabase() {
 	dsn := "host=/var/run/postgresql/ user=postgres password=postgres dbname=tc_cadet_dataset_db port=5432 sslmode=disable TimeZone=Asia/Shanghai client_encoding=UTF8"
 	var err error
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		log.Printf("Failed to connect to database: %v", err)
 		log.Fatal("failed to connect database")
@@ -53,9 +57,11 @@ func InitKairosDatabase() {
 
 // 表结构定义
 type DangerousSubject struct {
-	Time        int64  `gorm:"column:time"`
-	SubjectType string `gorm:"column:subject_type"`
-	SubjectName string `gorm:"column:subject_name"`
+	Timestamp   time.Time `gorm:"column:timestamp"`
+	Time        int64     `gorm:"column:time"`
+	SubjectType string    `gorm:"column:subject_type"`
+	SubjectName string    `gorm:"column:subject_name"`
+	GraphIndex  string    `gorm:"column:graph_index"`
 }
 
 func (DangerousSubject) TableName() string {
@@ -63,9 +69,11 @@ func (DangerousSubject) TableName() string {
 }
 
 type AnomalousSubject struct {
-	Time        int64  `gorm:"column:time"`
-	SubjectType string `gorm:"column:subject_type"`
-	SubjectName string `gorm:"column:subject_name"`
+	Timestamp   time.Time `gorm:"column:timestamp"`
+	Time        int64     `gorm:"column:time"`
+	SubjectType string    `gorm:"column:subject_type"`
+	SubjectName string    `gorm:"column:subject_name"`
+	GraphIndex  string    `gorm:"column:graph_index"`
 }
 
 func (AnomalousSubject) TableName() string {
@@ -73,12 +81,14 @@ func (AnomalousSubject) TableName() string {
 }
 
 type DangerousAction struct {
-	Time        int64  `gorm:"column:time"`
-	SubjectType string `gorm:"column:subject_type"`
-	SubjectName string `gorm:"column:subject_name"`
-	Action      string `gorm:"column:action"`
-	ObjectType  string `gorm:"column:object_type"`
-	ObjectName  string `gorm:"column:object_name"`
+	Timestamp   time.Time `gorm:"column:timestamp"`
+	Time        int64     `gorm:"column:time"`
+	SubjectType string    `gorm:"column:subject_type"`
+	SubjectName string    `gorm:"column:subject_name"`
+	Action      string    `gorm:"column:action"`
+	ObjectType  string    `gorm:"column:object_type"`
+	ObjectName  string    `gorm:"column:object_name"`
+	GraphIndex  string    `gorm:"column:graph_index"`
 }
 
 func (DangerousAction) TableName() string {
@@ -86,12 +96,14 @@ func (DangerousAction) TableName() string {
 }
 
 type AnomalousAction struct {
-	Time        int64  `gorm:"column:time"`
-	SubjectType string `gorm:"column:subject_type"`
-	SubjectName string `gorm:"column:subject_name"`
-	Action      string `gorm:"column:action"`
-	ObjectType  string `gorm:"column:object_type"`
-	ObjectName  string `gorm:"column:object_name"`
+	Timestamp   time.Time `gorm:"column:timestamp"`
+	Time        int64     `gorm:"column:time"`
+	SubjectType string    `gorm:"column:subject_type"`
+	SubjectName string    `gorm:"column:subject_name"`
+	Action      string    `gorm:"column:action"`
+	ObjectType  string    `gorm:"column:object_type"`
+	ObjectName  string    `gorm:"column:object_name"`
+	GraphIndex  string    `gorm:"column:graph_index"`
 }
 
 func (AnomalousAction) TableName() string {
@@ -99,9 +111,11 @@ func (AnomalousAction) TableName() string {
 }
 
 type DangerousObject struct {
-	Time       int64  `gorm:"column:time"`
-	ObjectType string `gorm:"column:object_type"`
-	ObjectName string `gorm:"column:object_name"`
+	Timestamp  time.Time `gorm:"column:timestamp"`
+	Time       int64     `gorm:"column:time"`
+	ObjectType string    `gorm:"column:object_type"`
+	ObjectName string    `gorm:"column:object_name"`
+	GraphIndex string    `gorm:"column:graph_index"`
 }
 
 func (DangerousObject) TableName() string {
@@ -109,9 +123,11 @@ func (DangerousObject) TableName() string {
 }
 
 type AnomalousObject struct {
-	Time       int64  `gorm:"column:time"`
-	ObjectType string `gorm:"column:object_type"`
-	ObjectName string `gorm:"column:object_name"`
+	Timestamp  time.Time `gorm:"column:timestamp"`
+	Time       int64     `gorm:"column:time"`
+	ObjectType string    `gorm:"column:object_type"`
+	ObjectName string    `gorm:"column:object_name"`
+	GraphIndex string    `gorm:"column:graph_index"`
 }
 
 func (AnomalousObject) TableName() string {
