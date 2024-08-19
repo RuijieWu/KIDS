@@ -6,10 +6,12 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"KIDS/audit_data"
 )
@@ -17,14 +19,16 @@ import (
 func init() {
 	var err error
 	dsn := "host=/var/run/postgresql/ user=postgres password=postgres dbname=tc_cadet_dataset_db port=5432 sslmode=disable TimeZone=Asia/Shanghai"
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 }
 
 func Cronjob() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(15	 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -49,36 +53,61 @@ func processAuditLogs() {
 	endTime := now.Format("2006-01-02T15:04:05")
 	endTimeUnix := now.UnixNano()
 
-	pythonURL := "http://localhost:8010/audit-logs"
-	resp, err := http.Get(pythonURL + "?start_time=" + startTime + "&end_time=" + endTime)
-	if err != nil {
-		log.Printf("Failed to connect to the Python service: %v", err)
-		return
-	}
-	defer resp.Body.Close()
+	pythonURLs := audit_data.AgentIPs
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Failed to read response from the Python service: %v", err)
-		return
-	}
+	for _, pythonURL := range pythonURLs {
+		resp, err := http.Get("http://" + pythonURL + "/audit-logs" + "?start_time=" + startTime + "&end_time=" + endTime)
+		if err != nil {
+			// log.Printf("Error getting audit logs: %v", err)
+			continue
+		}
+		defer resp.Body.Close()
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
-		log.Printf("Failed to parse response from the Python service: %v", err)
-		return
-	}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("Error reading response body: %v", err)
+			continue
+		}
 
-	// Parse to type Events struct
-	var events audit_data.Events
-	if err := json.Unmarshal(body, &events); err != nil {
-		log.Printf("Failed to parse events from the response: %v", err)
-		return
-	}
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err != nil {
+			log.Printf("Error unmarshalling response body: %v", err)
+			continue
+		}
 
-	// Filter and insert events
-	audit_data.InsertEvents(events)
-	InsertBlacklistActions(fmt.Sprintf("%d", startTimeUnix), fmt.Sprintf("%d", endTimeUnix))
+		// Parse to type Events struct
+		var events audit_data.Events
+		if err := json.Unmarshal(body, &events); err != nil {
+			continue
+		}
+
+		// print the events
+		log.Printf("Events: %v", events)
+
+		// Filter and insert events
+		// if in white list, delete the event
+		newEvents := audit_data.Events{}
+		for _, folder := range events.FolderWatch {
+			if _, ok := IsWhitelisted(folder); ok {
+				continue
+			} else {
+				newEvents.FolderWatch = append(newEvents.FolderWatch, folder)
+			}
+		}
+
+		for _, netflow := range events.SocketOps {
+			if _, ok := IsWhitelisted(netflow); ok {
+				continue
+			} else {
+				newEvents.SocketOps = append(newEvents.SocketOps, netflow)
+			}
+		}
+
+		events = newEvents
+
+		audit_data.InsertEvents(events)
+		InsertBlacklistActions(fmt.Sprintf("%d", startTimeUnix), fmt.Sprintf("%d", endTimeUnix))
+	}
 }
 
 // check the events in past 10 seconds and insert the blacklisted actions. set the flag to 0
@@ -151,4 +180,37 @@ func IsBlacklisted(node string) (string, string, bool) {
 	}
 
 	return "", "", false
+}
+
+func IsWhitelisted(node interface{}) (string, bool) {
+	switch node := node.(type) {
+	case audit_data.FolderWatch:
+		var whiteNode WhitelistFile
+		DB.Where("path = ?", node.File).First(&whiteNode)
+		if whiteNode.ID != 0 {
+			return node.File, true
+		}
+		var whiteNode2 WhitelistSubject
+		DB.Where("exec = ?", node.Process).First(&whiteNode2)
+		if whiteNode2.ID != 0 {
+			return node.Process, true
+		}
+		return "", false
+
+	case audit_data.SocketOperation:
+		var whiteNode WhitelistSubject
+		DB.Where("exec = ?", node.Process).First(&whiteNode)
+		if whiteNode.ID != 0 {
+			return node.Process, true
+		}
+		var whiteNode2 WhitelistNetFlow
+		DB.Where("src_addr = ? AND src_port = ? AND dst_addr = ? AND dst_port = ?", node.SourceIP, node.SourcePort, node.DestinationIP, node.DestinationPort).First(&whiteNode2)
+		if whiteNode2.ID != 0 {
+			return fmt.Sprintf("%s:%s -> %s:%s", node.SourceIP, strconv.Itoa(node.SourcePort), node.DestinationIP, strconv.Itoa(node.DestinationPort)), true
+		}
+		return "", false
+
+	default:
+		return "", false
+	}
 }

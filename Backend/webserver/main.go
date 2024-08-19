@@ -32,6 +32,7 @@ func main() {
 	router.GET("/data/audit-logs", audit_data.GetAuditLogs)
 	router.GET("/data/agent-info", audit_data.GetAgentInfo)
 	router.POST("/data/upload-log", audit_data.UploadLog)
+	router.GET("/data/stats", audit_data.GetStats)
 
 	router.GET("/alarm/message/list", open_api_forward.ForwardMessageListRequest)
 	router.GET("/alarm/alarm/list", open_api_forward.ForwardAlarmListRequest)
@@ -40,14 +41,24 @@ func main() {
 	router.GET("/leak/linux/detail", open_api_forward.ForwardLeakLinuxDetail)
 
 	router.GET("/kairos/actions", Kairos.GetActions)
+	router.GET("/kairos/graph-actions", Kairos.GetGraphActions)
 	router.GET("/kairos/subjects", Kairos.GetSubjects)
+	router.GET("/kairos/graph-subjects", Kairos.GetGraphSubjects)
 	router.GET("/kairos/objects", Kairos.GetObjects)
+	router.GET("/kairos/graph-objects", Kairos.GetGraphObjects)
 	router.GET("/kairos/aberration-statics", Kairos.GetAberrationStatics)
-	router.GET("/kairos/graph-visual", Kairos.GetGraphVisual)
+	router.GET("/kairos/graph/info", Kairos.GetGraphInfo)
+	router.GET("/kairos/graph/content", Kairos.GetGraphContent)
 	router.POST("/kairos/completions", Kairos.GetCompletions)
 
 	router.POST("/blacklist/set-blacklist", Blacklist.SetBlackList)
 	router.GET("/blacklist/get-blacklist", Blacklist.GetBlackList)
+	router.POST("/blacklist/set-whitelist", Blacklist.SetWhiteList)
+
+	router.GET("/ping", Kairos.HandlePing)
+	router.GET("/api/:cmd/:begin_time/:end_time", Kairos.HandleApi)
+	router.GET("/config/update/:key/:value", Kairos.HandleConfigUpdate)
+	router.GET("/config/view", Kairos.HandleConfigView)
 
 	router.Run(":8080")
 
