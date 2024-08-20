@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	engineHost = "localhost"
-	enginePort = "8000"
+	engineHost = "1.95.91.187"
+	enginePort = "7777"
 )
 
 type KairosResp struct {

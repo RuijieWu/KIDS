@@ -60,6 +60,8 @@ func SetBlackList(c *gin.Context) {
 	for _, file := range blackList.File {
 		DB.Create(&file)
 	}
+	// print the black list
+	log.Println(blackList)
 	c.JSON(http.StatusOK, gin.H{"message": "success"})
 }
 
@@ -88,6 +90,19 @@ func SetWhiteList(c *gin.Context) {
 		return
 	}
 	//clear the table
-
+	DB.Exec("TRUNCATE TABLE whitelist_subjects_table")
+	for _, subject := range blackList.Subject {
+		DB.Create(&subject)
+	}
+	DB.Exec("TRUNCATE TABLE whitelist_files_table")
+	for _, file := range blackList.File {
+		DB.Create(&file)
+	}
+	DB.Exec("TRUNCATE TABLE whitelist_netflows_table")
+	for _, netFlow := range blackList.NetFlow {
+		DB.Create(&netFlow)
+	}
+	// print the white list
+	log.Println(blackList)
 	c.JSON(http.StatusOK, gin.H{"message": "success"})
 }

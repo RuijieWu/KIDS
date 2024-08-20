@@ -85,7 +85,7 @@ func (WhitelistNetFlow) TableName() string {
 
 // 初始化数据库连接并创建表
 func InitBlacklistDatabase() {
-	dsn := "host=/var/run/postgresql/ user=postgres password=postgres dbname=tc_cadet_dataset_db port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	dsn := "host=/var/run/postgresql/ user=postgres password=os5_Irbk0-12fg/GT~Q+34Y[h9K8xUCW dbname=tc_cadet_dataset_db port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),

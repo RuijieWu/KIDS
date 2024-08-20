@@ -45,7 +45,7 @@ type AgentInfo struct {
 // List of agent IPs
 var agentIPs = []string{
 	"localhost:8010",
-	"localhost:8020",
+	"1.95.91.187:8020",
 }
 
 var AgentIPs = agentIPs
@@ -263,6 +263,8 @@ func UploadLog(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	// print the events
+	log.Println("Events:", events)
 	InsertEvents(events)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Successfully uploaded and inserted the logs"})
@@ -510,7 +512,7 @@ func FormatSize(sizeInBytes int64) string {
 }
 
 func fetchPostgresReport() Storage {
-	cmd := `PGPASSWORD='postgres' psql -U postgres -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size, 
+	cmd := `PGPASSWORD='os5_Irbk0-12fg/GT~Q+34Y[h9K8xUCW' psql -U postgres -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size, 
             xact_commit, xact_rollback, blks_read, blks_hit 
             FROM pg_stat_database;"`
 	output, err := exec.Command("bash", "-c", cmd).Output()
